@@ -66,7 +66,7 @@ export default function TicketsPage() {
       saveTickets(updatedTickets)
     } else {
       const newTicket: TicketType = {
-        id: Date.now().toString(),
+        // id: Date.now().toString(),
         ...formData as TicketType
       }
       saveTickets([...tickets, newTicket])

@@ -62,7 +62,7 @@ export default function SpeakersPage() {
       saveSpeakers(updatedSpeakers)
     } else {
       const newSpeaker: Speaker = {
-        id: Date.now().toString(),
+        // id: Date.now().toString(),
         ...formData as Speaker
       }
       saveSpeakers([...speakers, newSpeaker])

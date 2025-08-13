@@ -92,7 +92,7 @@ export default function StaffPage() {
       saveStaff(updatedStaff)
     } else {
       const newStaff: StaffMember = {
-        id: Date.now().toString(),
+        // id: Date.now().toString(),
         ...formData as StaffMember
       }
       saveStaff([...staff, newStaff])
