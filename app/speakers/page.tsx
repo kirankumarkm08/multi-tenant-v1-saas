@@ -1,103 +1,125 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Edit, Trash2, Users, ArrowLeft } from 'lucide-react'
-import Link from 'next/link'
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Plus, Edit, Trash2, Users, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 interface Speaker {
-  id: string
-  name: string
-  title: string
-  company: string
-  bio: string
-  image: string
-  email: string
+  id: string;
+  name: string;
+  title: string;
+  company: string;
+  bio: string;
+  image: string;
+  email: string;
   social: {
-    twitter?: string
-    linkedin?: string
-    website?: string
-  }
-  topics: string[]
+    twitter?: string;
+    linkedin?: string;
+    website?: string;
+  };
+  topics: string[];
 }
 
 export default function SpeakersPage() {
-  const [speakers, setSpeakers] = useState<Speaker[]>([])
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [editingSpeaker, setEditingSpeaker] = useState<Speaker | null>(null)
+  const [speakers, setSpeakers] = useState<Speaker[]>([]);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingSpeaker, setEditingSpeaker] = useState<Speaker | null>(null);
   const [formData, setFormData] = useState<Partial<Speaker>>({
-    name: '',
-    title: '',
-    company: '',
-    bio: '',
-    image: '',
-    email: '',
+    name: "",
+    title: "",
+    company: "",
+    bio: "",
+    image: "",
+    email: "",
     social: {},
-    topics: []
-  })
+    topics: [],
+  });
 
   useEffect(() => {
-    const savedSpeakers = JSON.parse(localStorage.getItem('speakers') || '[]')
-    setSpeakers(savedSpeakers)
-  }, [])
+    const savedSpeakers = JSON.parse(localStorage.getItem("speakers") || "[]");
+    setSpeakers(savedSpeakers);
+  }, []);
 
   const saveSpeakers = (updatedSpeakers: Speaker[]) => {
-    localStorage.setItem('speakers', JSON.stringify(updatedSpeakers))
-    setSpeakers(updatedSpeakers)
-  }
+    localStorage.setItem("speakers", JSON.stringify(updatedSpeakers));
+    setSpeakers(updatedSpeakers);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    
+    e.preventDefault();
+
     if (editingSpeaker) {
-      const updatedSpeakers = speakers.map(speaker =>
+      const updatedSpeakers = speakers.map((speaker) =>
         speaker.id === editingSpeaker.id ? { ...speaker, ...formData } : speaker
-      )
-      saveSpeakers(updatedSpeakers)
+      );
+      saveSpeakers(updatedSpeakers);
     } else {
       const newSpeaker: Speaker = {
         // id: Date.now().toString(),
-        ...formData as Speaker
-      }
-      saveSpeakers([...speakers, newSpeaker])
+        ...(formData as Speaker),
+      };
+      saveSpeakers([...speakers, newSpeaker]);
     }
-    
-    resetForm()
-  }
+
+    resetForm();
+  };
 
   const resetForm = () => {
     setFormData({
-      name: '',
-      title: '',
-      company: '',
-      bio: '',
-      image: '',
-      email: '',
+      name: "",
+      title: "",
+      company: "",
+      bio: "",
+      image: "",
+      email: "",
       social: {},
-      topics: []
-    })
-    setEditingSpeaker(null)
-    setIsDialogOpen(false)
-  }
+      topics: [],
+    });
+    setEditingSpeaker(null);
+    setIsDialogOpen(false);
+  };
 
   const handleEdit = (speaker: Speaker) => {
-    setEditingSpeaker(speaker)
-    setFormData(speaker)
-    setIsDialogOpen(true)
-  }
+    setEditingSpeaker(speaker);
+    setFormData(speaker);
+    setIsDialogOpen(true);
+  };
 
   const handleDelete = (speakerId: string) => {
-    if (confirm('Are you sure you want to delete this speaker?')) {
-      const updatedSpeakers = speakers.filter(speaker => speaker.id !== speakerId)
-      saveSpeakers(updatedSpeakers)
+    if (confirm("Are you sure you want to delete this speaker?")) {
+      const updatedSpeakers = speakers.filter(
+        (speaker) => speaker.id !== speakerId
+      );
+      saveSpeakers(updatedSpeakers);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -105,7 +127,7 @@ export default function SpeakersPage() {
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Link href="/dashboard">
+              <Link href="/admin/dashboard">
                 <Button variant="ghost" size="sm">
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Back to Dashboard
@@ -125,7 +147,9 @@ export default function SpeakersPage() {
               </DialogTrigger>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
-                  <DialogTitle>{editingSpeaker ? 'Edit Speaker' : 'Add New Speaker'}</DialogTitle>
+                  <DialogTitle>
+                    {editingSpeaker ? "Edit Speaker" : "Add New Speaker"}
+                  </DialogTitle>
                   <DialogDescription>
                     Fill in the speaker details below.
                   </DialogDescription>
@@ -137,7 +161,12 @@ export default function SpeakersPage() {
                       <Input
                         id="name"
                         value={formData.name}
-                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            name: e.target.value,
+                          }))
+                        }
                         required
                       />
                     </div>
@@ -147,19 +176,29 @@ export default function SpeakersPage() {
                         id="email"
                         type="email"
                         value={formData.email}
-                        onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            email: e.target.value,
+                          }))
+                        }
                         required
                       />
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="title">Job Title</Label>
                       <Input
                         id="title"
                         value={formData.title}
-                        onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            title: e.target.value,
+                          }))
+                        }
                         placeholder="e.g. Senior Developer"
                         required
                       />
@@ -169,57 +208,79 @@ export default function SpeakersPage() {
                       <Input
                         id="company"
                         value={formData.company}
-                        onChange={(e) => setFormData(prev => ({ ...prev, company: e.target.value }))}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            company: e.target.value,
+                          }))
+                        }
                         placeholder="Company name"
                         required
                       />
                     </div>
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="bio">Biography</Label>
                     <Textarea
                       id="bio"
                       value={formData.bio}
-                      onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          bio: e.target.value,
+                        }))
+                      }
                       placeholder="Speaker biography..."
                       rows={3}
                     />
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="image">Profile Image URL</Label>
                     <Input
                       id="image"
                       value={formData.image}
-                      onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          image: e.target.value,
+                        }))
+                      }
                       placeholder="https://example.com/image.jpg"
                     />
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="topics">Topics (comma-separated)</Label>
                     <Input
                       id="topics"
-                      value={formData.topics?.join(', ') || ''}
-                      onChange={(e) => setFormData(prev => ({ 
-                        ...prev, 
-                        topics: e.target.value.split(',').map(t => t.trim()).filter(t => t) 
-                      }))}
+                      value={formData.topics?.join(", ") || ""}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          topics: e.target.value
+                            .split(",")
+                            .map((t) => t.trim())
+                            .filter((t) => t),
+                        }))
+                      }
                       placeholder="React, JavaScript, Web Development"
                     />
                   </div>
-                  
+
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <Label htmlFor="twitter">Twitter</Label>
                       <Input
                         id="twitter"
-                        value={formData.social?.twitter || ''}
-                        onChange={(e) => setFormData(prev => ({ 
-                          ...prev, 
-                          social: { ...prev.social, twitter: e.target.value }
-                        }))}
+                        value={formData.social?.twitter || ""}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            social: { ...prev.social, twitter: e.target.value },
+                          }))
+                        }
                         placeholder="@username"
                       />
                     </div>
@@ -227,11 +288,16 @@ export default function SpeakersPage() {
                       <Label htmlFor="linkedin">LinkedIn</Label>
                       <Input
                         id="linkedin"
-                        value={formData.social?.linkedin || ''}
-                        onChange={(e) => setFormData(prev => ({ 
-                          ...prev, 
-                          social: { ...prev.social, linkedin: e.target.value }
-                        }))}
+                        value={formData.social?.linkedin || ""}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            social: {
+                              ...prev.social,
+                              linkedin: e.target.value,
+                            },
+                          }))
+                        }
                         placeholder="linkedin.com/in/username"
                       />
                     </div>
@@ -239,22 +305,24 @@ export default function SpeakersPage() {
                       <Label htmlFor="website">Website</Label>
                       <Input
                         id="website"
-                        value={formData.social?.website || ''}
-                        onChange={(e) => setFormData(prev => ({ 
-                          ...prev, 
-                          social: { ...prev.social, website: e.target.value }
-                        }))}
+                        value={formData.social?.website || ""}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            social: { ...prev.social, website: e.target.value },
+                          }))
+                        }
                         placeholder="https://website.com"
                       />
                     </div>
                   </div>
-                  
+
                   <div className="flex justify-end space-x-2">
                     <Button type="button" variant="outline" onClick={resetForm}>
                       Cancel
                     </Button>
                     <Button type="submit">
-                      {editingSpeaker ? 'Update Speaker' : 'Add Speaker'}
+                      {editingSpeaker ? "Update Speaker" : "Add Speaker"}
                     </Button>
                   </div>
                 </form>
@@ -269,8 +337,12 @@ export default function SpeakersPage() {
           <Card>
             <CardContent className="text-center py-12">
               <Users className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No speakers yet</h3>
-              <p className="text-gray-600 mb-4">Add speakers to showcase at your events.</p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                No speakers yet
+              </h3>
+              <p className="text-gray-600 mb-4">
+                Add speakers to showcase at your events.
+              </p>
               <Button onClick={() => setIsDialogOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Speaker
@@ -298,9 +370,13 @@ export default function SpeakersPage() {
                   <div className="p-4">
                     <h3 className="font-bold text-lg">{speaker.name}</h3>
                     <p className="text-sm text-gray-600">{speaker.title}</p>
-                    <p className="text-sm text-gray-500 mb-2">{speaker.company}</p>
+                    <p className="text-sm text-gray-500 mb-2">
+                      {speaker.company}
+                    </p>
                     {speaker.bio && (
-                      <p className="text-sm text-gray-700 mb-3 line-clamp-3">{speaker.bio}</p>
+                      <p className="text-sm text-gray-700 mb-3 line-clamp-3">
+                        {speaker.bio}
+                      </p>
                     )}
                     {speaker.topics && speaker.topics.length > 0 && (
                       <div className="flex flex-wrap gap-1 mb-3">
@@ -323,7 +399,10 @@ export default function SpeakersPage() {
                       <div className="flex space-x-2">
                         {speaker.social?.twitter && (
                           <a
-                            href={`https://twitter.com/${speaker.social.twitter.replace('@', '')}`}
+                            href={`https://twitter.com/${speaker.social.twitter.replace(
+                              "@",
+                              ""
+                            )}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-500 hover:text-blue-700"
@@ -367,5 +446,5 @@ export default function SpeakersPage() {
         )}
       </div>
     </div>
-  )
+  );
 }

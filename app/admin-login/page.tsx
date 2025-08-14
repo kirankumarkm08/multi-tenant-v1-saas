@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
+import { apiFetch } from "@/lib/api-config";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -14,6 +15,17 @@ export default function LoginPage() {
 
   const router = useRouter();
   const { setToken } = useAuth();
+
+  useEffect(() => {
+    // If already authenticated, go straight to dashboard
+    const storedToken =
+      typeof window !== "undefined"
+        ? localStorage.getItem("access_token")
+        : null;
+    if (storedToken) {
+      router.replace("/admin/dashboard");
+    }
+  }, [router]);
 
   const validate = () => {
     let valid = true;
@@ -41,19 +53,16 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const res = await fetch("https://165.227.182.17/api/tenant/login", {
+      const response = await apiFetch("/tenant/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
 
-      const json = await res.json();
-
-      if (!res.ok || !json?.data?.access_token) {
-        throw new Error(json?.message || "Invalid email or password");
+      if (!response?.data?.access_token) {
+        throw new Error(response?.message || "Invalid email or password");
       }
 
-      const token = json.data.access_token;
+      const token = response.data.access_token;
       setToken(token);
       router.push("/admin/dashboard");
     } catch (err: any) {

@@ -29,24 +29,19 @@ interface UserForm {
 }
 
 export default function UserDashboard() {
-  const token = process.env.NEXT_PUBLIC_API_BEARER_TOKEN;
   const [userForms, setUserForms] = useState<UserForm[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    if (token) {
-      fetchUserForms();
-    }
-  }, [token]);
+    fetchUserForms();
+  }, []);
 
   const fetchUserForms = async () => {
     try {
       setLoading(true);
       // Fetch forms that the user can access
-      const response = await apiFetch("/tenant/pages", {
-        token: token || undefined,
-      });
+      const response = await apiFetch("/tenant/pages");
 
       const formsData = Array.isArray(response)
         ? response
@@ -76,13 +71,7 @@ export default function UserDashboard() {
       form.type.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (!token) {
-    return (
-      <div className="text-red-600 font-bold p-8 text-center">
-        Access denied. Please log in.
-      </div>
-    );
-  }
+  // Access control can be added here if required
 
   return (
     <div className="min-h-screen bg-gray-50">

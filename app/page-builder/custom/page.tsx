@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api-config";
+import { useAuth } from "@/context/AuthContext";
 
 interface PageModule {
   id: string;
@@ -149,7 +150,7 @@ const moduleTemplates = [
 ];
 
 export default function CustomPageBuilder() {
-  const token = process.env.NEXT_PUBLIC_API_BEARER_TOKEN;
+  const { token } = useAuth();
   const [page, setPage] = useState<CustomPage>({
     id: "",
     name: "New Custom Page",
@@ -181,7 +182,7 @@ export default function CustomPageBuilder() {
 
   const loadPage = async (pageId: string) => {
     try {
-      const data = await apiFetch(`/tenant/pages/${pageId}`, { token });
+      const data = await apiFetch(`/tenant/pages/${pageId}`);
       const modules =
         typeof data.modules === "string"
           ? JSON.parse(data.modules)
@@ -254,10 +255,7 @@ export default function CustomPageBuilder() {
   };
 
   const savePage = async () => {
-    if (!token) {
-      alert("API key missing or invalid. Access denied.");
-      return;
-    }
+    // token is auto-attached by apiFetch from localStorage
     setIsSaving(true);
     try {
       const requestData = {
@@ -279,7 +277,6 @@ export default function CustomPageBuilder() {
       const saved = await apiFetch(endpoint, {
         method,
         body: JSON.stringify(requestData),
-        token,
       });
 
       if (!page.id && saved?.id) {
@@ -308,7 +305,7 @@ export default function CustomPageBuilder() {
     if (!confirm("Are you sure you want to delete this custom page?")) return;
     setIsDeleting(true);
     try {
-      await apiFetch(`/tenant/pages/${page.id}`, { method: "DELETE", token });
+      await apiFetch(`/tenant/pages/${page.id}`, { method: "DELETE" });
       alert("Custom page deleted");
       setPage((prev) => ({ ...prev, id: "" }));
       window.history.pushState({}, "", `?`);
@@ -356,7 +353,7 @@ export default function CustomPageBuilder() {
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Link href="/dashboard">
+              <Link href="/admin/dashboard">
                 <Button variant="ghost" size="sm">
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Back to Dashboard

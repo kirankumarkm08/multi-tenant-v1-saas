@@ -28,17 +28,16 @@ interface LoginPageItem {
 }
 
 export default function LoginPagesList() {
-  const token = process.env.NEXT_PUBLIC_API_BEARER_TOKEN;
   const [pages, setPages] = useState<LoginPageItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadPages = async () => {
-    if (!token) return;
+    // token not required; apiFetch uses localStorage token
     setLoading(true);
     try {
-      const resp = await apiFetch("/tenant/pages?type=login", { token });
+      const resp = await apiFetch("/tenant/pages?type=login");
       const list: any[] = Array.isArray(resp) ? resp : resp?.data || resp || [];
       setPages(
         list.map((p) => ({
@@ -63,7 +62,7 @@ export default function LoginPagesList() {
   useEffect(() => {
     loadPages();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -81,7 +80,7 @@ export default function LoginPagesList() {
     if (!confirm("Delete this login page?")) return;
     setDeletingId(id);
     try {
-      await apiFetch(`/tenant/pages/${id}`, { method: "DELETE", token });
+      await apiFetch(`/tenant/pages/${id}`, { method: "DELETE" });
       setPages((prev) => prev.filter((p) => p.id !== id));
     } catch (err) {
       console.error("Failed to delete page:", err);

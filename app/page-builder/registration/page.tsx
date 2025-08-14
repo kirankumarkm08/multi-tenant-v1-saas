@@ -111,7 +111,6 @@ const defaultFields: FormField[] = [
 ];
 
 export default function RegistrationPageBuilder() {
-  const token = process.env.NEXT_PUBLIC_API_BEARER_TOKEN;
   const [page, setPage] = useState<RegistrationPage>({
     id: "",
     title: "Event Registration",
@@ -125,6 +124,8 @@ export default function RegistrationPageBuilder() {
       redirectUrl: "",
     },
   });
+  const { token } = useAuth();
+  console.log(token);
 
   const [isSaving, setIsSaving] = useState(false);
   const [draggedField, setDraggedField] = useState<string | null>(null);
@@ -139,9 +140,7 @@ export default function RegistrationPageBuilder() {
 
   const loadPage = async (pageId: string) => {
     try {
-      const data = await apiFetch(`/tenant/pages/${pageId}`, {
-        token: token || undefined,
-      });
+      const data = await apiFetch(`/tenant/pages/${pageId}`);
       // Parse form_config if it comes as a JSON string
       const formConfigRaw =
         typeof data.form_config === "string"
@@ -292,11 +291,9 @@ export default function RegistrationPageBuilder() {
       };
       const endpoint = page.id ? `/tenant/pages/${page.id}` : `/tenant/pages`;
       const method = page.id ? "PUT" : "POST";
-      console.log("API TOKEN USED:", token); // Debug log
       const savedPage = await apiFetch(endpoint, {
         method,
         body: JSON.stringify(requestData),
-        token: token || undefined,
       });
       if (!page.id) {
         setPage((prev) => ({ ...prev, id: savedPage.id }));
@@ -368,7 +365,7 @@ export default function RegistrationPageBuilder() {
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Link href="/dashboard">
+              <Link href="/admin/dashboard">
                 <Button variant="ghost" size="sm">
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Back to Dashboard

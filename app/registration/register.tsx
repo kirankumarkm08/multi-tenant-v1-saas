@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 // import { useAuth } from "@/context/AuthContext";
 
 export default function ClientRegistrationPage() {
-  const token = process.env.NEXT_PUBLIC_API_BEARER_TOKEN;
   const [formConfig, setFormConfig] = useState<any>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
@@ -18,12 +17,21 @@ export default function ClientRegistrationPage() {
       if (!tenant) return;
       setLoading(true);
       try {
-        const res = await apiFetch(
-          `/tenant/pages?type=register&tenant=${tenant}`,
-          {
-            token: token || undefined,
-          }
-        );
+        let res: any = null;
+        try {
+          res = await apiFetch(`/tenant/pages?type=register&tenant=${tenant}`);
+        } catch (_e) {}
+        if (
+          !res ||
+          (Array.isArray(res) && res.length === 0) ||
+          (res?.data && Array.isArray(res.data) && res.data.length === 0)
+        ) {
+          try {
+            res = await apiFetch(
+              `/tenant/pages?form_type=register&tenant=${tenant}`
+            );
+          } catch (_e2) {}
+        }
         setRaw(res);
         // Normalize possible shapes: {data: [...]}, [...], or single object
         const maybeArray = Array.isArray(res)
@@ -55,7 +63,7 @@ export default function ClientRegistrationPage() {
       setLoading(false);
     }
     fetchConfig();
-  }, [tenant, token]);
+  }, [tenant]);
 
   if (loading) return <div>Loading...</div>;
   if (!formConfig || !formConfig.form_config)

@@ -1,48 +1,50 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Save, Eye, ArrowLeft, Loader2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api-config";
-import { Checkbox } from "@/components/ui/checkbox";
 
-interface LoginPageSettings {
-  usernameLabel: string;
-  passwordLabel: string;
+interface ContactPageSettings {
+  nameLabel: string;
+  emailLabel: string;
+  phoneEnabled: boolean;
+  phoneLabel: string;
+  messageLabel: string;
   submitButtonText: string;
-  forgotPasswordLink: boolean;
-  registerLink: boolean;
-  rememberMeOption: boolean;
 }
 
-interface LoginPage {
+interface ContactPage {
   id: string;
   name: string;
   slug?: string;
   title: string;
   description: string;
-  settings: LoginPageSettings;
+  settings: ContactPageSettings;
 }
 
-export default function LoginPageBuilder() {
-  const [page, setPage] = useState<LoginPage>({
+export default function ContactPageBuilder() {
+  const [page, setPage] = useState<ContactPage>({
     id: "",
-    name: "Login Page",
-    slug: "login",
-    title: "Login to Your Account",
-    description: "Please enter your credentials to access your account",
+    name: "Contact Page",
+    slug: "contact",
+    title: "Contact Us",
+    description:
+      "We'd love to hear from you. Fill out the form and we'll respond soon.",
     settings: {
-      usernameLabel: "Username or Email",
-      passwordLabel: "Password",
-      submitButtonText: "Sign In",
-      forgotPasswordLink: true,
-      registerLink: true,
-      rememberMeOption: true,
+      nameLabel: "Your Name",
+      emailLabel: "Email",
+      phoneEnabled: true,
+      phoneLabel: "Phone",
+      messageLabel: "Message",
+      submitButtonText: "Send Message",
     },
   });
 
@@ -72,7 +74,7 @@ export default function LoginPageBuilder() {
       setIsLoadingPages(true);
       let response: any = null;
       try {
-        response = await apiFetch("/tenant/pages?type=login");
+        response = await apiFetch("/tenant/pages?type=contact");
       } catch (_e) {}
       if (
         !response ||
@@ -82,11 +84,11 @@ export default function LoginPageBuilder() {
           response.data.length === 0)
       ) {
         try {
-          response = await apiFetch("/tenant/pages?form_type=login");
+          response = await apiFetch("/tenant/pages?form_type=contact");
         } catch (_e2) {}
       }
 
-      let pages = [];
+      let pages: any[] = [];
       if (Array.isArray(response)) {
         pages = response;
       } else if (response?.data && Array.isArray(response.data)) {
@@ -99,7 +101,7 @@ export default function LoginPageBuilder() {
         pages.map((p: any) => ({
           id: p.id,
           name: p.name || "Unnamed Page",
-          slug: p.slug || "login",
+          slug: p.slug || "contact",
         }))
       );
     } catch (error) {
@@ -114,22 +116,22 @@ export default function LoginPageBuilder() {
       // Create new page
       setPage({
         id: "",
-        name: "New Login Page",
-        slug: "login",
-        title: "Login to Your Account",
-        description: "Please enter your credentials to access your account",
+        name: "New Contact Page",
+        slug: "contact",
+        title: "Contact Us",
+        description:
+          "We'd love to hear from you. Fill out the form and we'll respond soon.",
         settings: {
-          usernameLabel: "Username or Email",
-          passwordLabel: "Password",
-          submitButtonText: "Sign In",
-          forgotPasswordLink: true,
-          registerLink: true,
-          rememberMeOption: true,
+          nameLabel: "Your Name",
+          emailLabel: "Email",
+          phoneEnabled: true,
+          phoneLabel: "Phone",
+          messageLabel: "Message",
+          submitButtonText: "Send Message",
         },
       });
       window.history.pushState({}, "", "?");
     } else {
-      // Load existing page
       loadPage(pageId);
       window.history.pushState({}, "", `?id=${pageId}`);
     }
@@ -154,32 +156,33 @@ export default function LoginPageBuilder() {
           ? JSON.parse(data.settings)
           : data.settings || {};
 
-      // Find username and password fields from form config
-      const usernameField = formConfig?.find(
-        (f: { name?: string }) => f.name === "username"
+      const nameField = formConfig?.find(
+        (f: { name?: string }) => f.name === "name"
       );
-      const passwordField = formConfig?.find(
-        (f: { name?: string; type?: string }) =>
-          f.name === "password" || f.type === "password"
+      const emailField = formConfig?.find(
+        (f: { name?: string; type?: string }) => f.name === "email"
+      );
+      const phoneField = formConfig?.find(
+        (f: { name?: string }) => f.name === "phone"
+      );
+      const messageField = formConfig?.find(
+        (f: { name?: string }) => f.name === "message"
       );
 
       setPage({
         id: data.id,
-        name: data.name || "Login Page",
-        slug: data.slug || "login",
-        title: data.title || "Login to Your Account",
+        name: data.name || "Contact Page",
+        slug: data.slug || "contact",
+        title: data.title || "Contact Us",
         description: data.description || "",
         settings: {
-          usernameLabel:
-            usernameField?.label ||
-            settings?.usernameLabel ||
-            "Username or Email",
-          passwordLabel:
-            passwordField?.label || settings?.passwordLabel || "Password",
-          submitButtonText: settings?.submitButtonText || "Sign In",
-          forgotPasswordLink: Boolean(settings?.forgotPasswordLink ?? true),
-          registerLink: Boolean(settings?.registerLink ?? true),
-          rememberMeOption: Boolean(settings?.rememberMeOption ?? true),
+          nameLabel: nameField?.label || settings?.nameLabel || "Your Name",
+          emailLabel: emailField?.label || settings?.emailLabel || "Email",
+          phoneEnabled: Boolean(settings?.phoneEnabled ?? Boolean(phoneField)),
+          phoneLabel: phoneField?.label || settings?.phoneLabel || "Phone",
+          messageLabel:
+            messageField?.label || settings?.messageLabel || "Message",
+          submitButtonText: settings?.submitButtonText || "Send Message",
         },
       });
     } catch (error) {
@@ -189,20 +192,18 @@ export default function LoginPageBuilder() {
   };
 
   const savePage = async () => {
-    // apiFetch auto-attaches token from localStorage
     setIsSaving(true);
 
     try {
-      const baseSlug = (page.slug || "login").trim() || "login";
+      const baseSlug = (page.slug || "contact").trim() || "contact";
 
-      // If this is a create and a page with the same slug already exists,
-      // switch to update to avoid 422 validation errors from duplicate slugs.
+      // Upsert by slug to avoid 422 on duplicates
       let targetId = page.id;
       if (!targetId) {
         try {
           let existingResponse: any = null;
           try {
-            existingResponse = await apiFetch("/tenant/pages?type=login");
+            existingResponse = await apiFetch("/tenant/pages?type=contact");
           } catch (_e) {}
           if (
             !existingResponse ||
@@ -214,7 +215,7 @@ export default function LoginPageBuilder() {
           ) {
             try {
               existingResponse = await apiFetch(
-                "/tenant/pages?form_type=login"
+                "/tenant/pages?form_type=contact"
               );
             } catch (_e2) {}
           }
@@ -227,46 +228,67 @@ export default function LoginPageBuilder() {
           if (match?.id) {
             targetId = match.id;
           }
-        } catch (_ignored) {
-          // best-effort; proceed if list cannot be fetched
-        }
+        } catch (_ignored) {}
       }
 
-      const form_config = [
+      const form_config: any[] = [
         {
-          id: "username",
-          name: "username",
-          label: page.settings.usernameLabel,
+          id: "name",
+          name: "name",
+          label: page.settings.nameLabel,
           type: "text",
           required: true,
-          placeholder: `Enter your ${page.settings.usernameLabel.toLowerCase()}`,
+          placeholder: `Enter your ${page.settings.nameLabel.toLowerCase()}`,
           order: 0,
         },
         {
-          id: "password",
-          name: "password",
-          label: page.settings.passwordLabel,
-          type: "password",
+          id: "email",
+          name: "email",
+          label: page.settings.emailLabel,
+          type: "email",
           required: true,
-          placeholder: `Enter your ${page.settings.passwordLabel.toLowerCase()}`,
+          placeholder: `Enter your ${page.settings.emailLabel.toLowerCase()}`,
           order: 1,
         },
       ];
+
+      if (page.settings.phoneEnabled) {
+        form_config.push({
+          id: "phone",
+          name: "phone",
+          label: page.settings.phoneLabel,
+          type: "text",
+          required: false,
+          placeholder: `Enter your ${page.settings.phoneLabel.toLowerCase()}`,
+          order: 2,
+        });
+      }
+
+      form_config.push({
+        id: "message",
+        name: "message",
+        label: page.settings.messageLabel,
+        type: "textarea",
+        required: true,
+        placeholder: `Enter your ${page.settings.messageLabel.toLowerCase()}`,
+        order: 3,
+      });
 
       const buildRequestData = (slug: string) => ({
         title: page.title,
         name: page.name,
         slug,
-        form_type: "login",
-        type: "login",
+        form_type: "contact",
+        type: "contact",
         form_config: JSON.stringify(form_config),
         description: page.description || "",
         settings: JSON.stringify({
+          nameLabel: page.settings.nameLabel,
+          emailLabel: page.settings.emailLabel,
+          phoneEnabled: page.settings.phoneEnabled,
+          phoneLabel: page.settings.phoneLabel,
+          messageLabel: page.settings.messageLabel,
           submitButtonText: page.settings.submitButtonText,
-          description: page.description,
-          forgotPasswordLink: page.settings.forgotPasswordLink,
-          registerLink: page.settings.registerLink,
-          rememberMeOption: page.settings.rememberMeOption,
         }),
       });
 
@@ -278,14 +300,12 @@ export default function LoginPageBuilder() {
         body: JSON.stringify(buildRequestData(baseSlug)),
       });
 
-      // Always update the page ID and URL after saving
       if (saved?.id) {
         setPage((prev) => ({ ...prev, id: saved.id }));
-        // Push the page ID to URL for both new and existing pages
         window.history.pushState({}, "", `?id=${saved.id}`);
       }
 
-      alert("Login page saved successfully!");
+      alert("Contact page saved successfully!");
     } catch (error: any) {
       console.error("Failed to save page:", error);
       const message =
@@ -301,15 +321,12 @@ export default function LoginPageBuilder() {
     if (!confirm("Are you sure you want to delete this page?")) return;
     setIsDeleting(true);
     try {
-      await apiFetch(`/tenant/pages/${page.id}`, {
-        method: "DELETE",
-      });
-      alert("Login page deleted");
-      setPage((prev) => ({
-        ...prev,
-        id: "",
-      }));
+      await apiFetch(`/tenant/pages/${page.id}`, { method: "DELETE" });
+      alert("Contact page deleted");
+      setPage((prev) => ({ ...prev, id: "" }));
       window.history.pushState({}, "", `?`);
+      // Refresh list
+      loadAvailablePages();
     } catch (error) {
       console.error("Failed to delete page:", error);
       alert("Failed to delete page");
@@ -331,8 +348,8 @@ export default function LoginPageBuilder() {
                 </Button>
               </Link>
               <div>
-                <h1 className="text-2xl font-bold">Login Page Builder</h1>
-                <Badge variant="secondary">Login Form</Badge>
+                <h1 className="text-2xl font-bold">Contact Page Builder</h1>
+                <Badge variant="secondary">Contact Form</Badge>
               </div>
             </div>
             <div className="flex items-center space-x-2">
@@ -358,7 +375,7 @@ export default function LoginPageBuilder() {
               </div>
 
               {page.id && (
-                <Link href={`/preview/login/${page.id}`}>
+                <Link href={`/preview/contact/${page.id}`}>
                   <Button variant="outline" size="sm">
                     <Eye className="mr-2 h-4 w-4" />
                     Preview
@@ -420,7 +437,7 @@ export default function LoginPageBuilder() {
                     onChange={(e) =>
                       setPage((prev) => ({ ...prev, name: e.target.value }))
                     }
-                    placeholder="Login Page"
+                    placeholder="Contact Page"
                   />
                 </div>
                 <div>
@@ -431,7 +448,7 @@ export default function LoginPageBuilder() {
                     onChange={(e) =>
                       setPage((prev) => ({ ...prev, slug: e.target.value }))
                     }
-                    placeholder="login"
+                    placeholder="contact"
                   />
                 </div>
                 <div>
@@ -442,7 +459,7 @@ export default function LoginPageBuilder() {
                     onChange={(e) =>
                       setPage((prev) => ({ ...prev, title: e.target.value }))
                     }
-                    placeholder="Login to Your Account"
+                    placeholder="Contact Us"
                   />
                 </div>
                 <div>
@@ -456,7 +473,7 @@ export default function LoginPageBuilder() {
                         description: e.target.value,
                       }))
                     }
-                    placeholder="Please enter your credentials to access your account"
+                    placeholder="We'd love to hear from you. Fill out the form and we'll respond soon."
                   />
                 </div>
               </CardContent>
@@ -468,37 +485,93 @@ export default function LoginPageBuilder() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="username-label">Username/Email Label</Label>
+                  <Label htmlFor="name-label">Name Label</Label>
                   <Input
-                    id="username-label"
-                    value={page.settings.usernameLabel}
+                    id="name-label"
+                    value={page.settings.nameLabel}
                     onChange={(e) =>
                       setPage((prev) => ({
                         ...prev,
                         settings: {
                           ...prev.settings,
-                          usernameLabel: e.target.value,
+                          nameLabel: e.target.value,
                         },
                       }))
                     }
-                    placeholder="Username or Email"
+                    placeholder="Your Name"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="password-label">Password Label</Label>
+                  <Label htmlFor="email-label">Email Label</Label>
                   <Input
-                    id="password-label"
-                    value={page.settings.passwordLabel}
+                    id="email-label"
+                    value={page.settings.emailLabel}
                     onChange={(e) =>
                       setPage((prev) => ({
                         ...prev,
                         settings: {
                           ...prev.settings,
-                          passwordLabel: e.target.value,
+                          emailLabel: e.target.value,
                         },
                       }))
                     }
-                    placeholder="Password"
+                    placeholder="Email"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="phone-enabled"
+                      checked={page.settings.phoneEnabled}
+                      onCheckedChange={(checked) =>
+                        setPage((prev) => ({
+                          ...prev,
+                          settings: {
+                            ...prev.settings,
+                            phoneEnabled: Boolean(checked),
+                          },
+                        }))
+                      }
+                    />
+                    <Label htmlFor="phone-enabled" className="text-sm">
+                      Include Phone Field
+                    </Label>
+                  </div>
+                  {page.settings.phoneEnabled && (
+                    <div>
+                      <Label htmlFor="phone-label">Phone Label</Label>
+                      <Input
+                        id="phone-label"
+                        value={page.settings.phoneLabel}
+                        onChange={(e) =>
+                          setPage((prev) => ({
+                            ...prev,
+                            settings: {
+                              ...prev.settings,
+                              phoneLabel: e.target.value,
+                            },
+                          }))
+                        }
+                        placeholder="Phone"
+                      />
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="message-label">Message Label</Label>
+                  <Input
+                    id="message-label"
+                    value={page.settings.messageLabel}
+                    onChange={(e) =>
+                      setPage((prev) => ({
+                        ...prev,
+                        settings: {
+                          ...prev.settings,
+                          messageLabel: e.target.value,
+                        },
+                      }))
+                    }
+                    placeholder="Message"
                   />
                 </div>
                 <div>
@@ -515,64 +588,8 @@ export default function LoginPageBuilder() {
                         },
                       }))
                     }
-                    placeholder="Sign In"
+                    placeholder="Send Message"
                   />
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="forgot"
-                      checked={page.settings.forgotPasswordLink}
-                      onCheckedChange={(checked) =>
-                        setPage((prev) => ({
-                          ...prev,
-                          settings: {
-                            ...prev.settings,
-                            forgotPasswordLink: Boolean(checked),
-                          },
-                        }))
-                      }
-                    />
-                    <Label htmlFor="forgot" className="text-sm">
-                      Show Forgot Password Link
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="registerLink"
-                      checked={page.settings.registerLink}
-                      onCheckedChange={(checked) =>
-                        setPage((prev) => ({
-                          ...prev,
-                          settings: {
-                            ...prev.settings,
-                            registerLink: Boolean(checked),
-                          },
-                        }))
-                      }
-                    />
-                    <Label htmlFor="registerLink" className="text-sm">
-                      Show Register Link
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="rememberMe"
-                      checked={page.settings.rememberMeOption}
-                      onCheckedChange={(checked) =>
-                        setPage((prev) => ({
-                          ...prev,
-                          settings: {
-                            ...prev.settings,
-                            rememberMeOption: Boolean(checked),
-                          },
-                        }))
-                      }
-                    />
-                    <Label htmlFor="rememberMe" className="text-sm">
-                      Enable Remember Me
-                    </Label>
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -587,15 +604,25 @@ export default function LoginPageBuilder() {
               <CardContent>
                 <form className="space-y-4">
                   <div>
-                    <Label>{page.settings.usernameLabel}</Label>
-                    <Input placeholder={page.settings.usernameLabel} />
+                    <Label>{page.settings.nameLabel}</Label>
+                    <Input placeholder={page.settings.nameLabel} />
                   </div>
                   <div>
-                    <Label>{page.settings.passwordLabel}</Label>
+                    <Label>{page.settings.emailLabel}</Label>
                     <Input
-                      type="password"
-                      placeholder={page.settings.passwordLabel}
+                      type="email"
+                      placeholder={page.settings.emailLabel}
                     />
+                  </div>
+                  {page.settings.phoneEnabled && (
+                    <div>
+                      <Label>{page.settings.phoneLabel}</Label>
+                      <Input placeholder={page.settings.phoneLabel} />
+                    </div>
+                  )}
+                  <div>
+                    <Label>{page.settings.messageLabel}</Label>
+                    <Textarea placeholder={page.settings.messageLabel} />
                   </div>
                   <Button type="button" className="w-full" disabled>
                     {page.settings.submitButtonText}

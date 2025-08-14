@@ -39,7 +39,7 @@ interface Page {
 }
 
 export default function PagesPage() {
-  const token = process.env.NEXT_PUBLIC_API_BEARER_TOKEN;
+  const { token } = useAuth();
   const [pages, setPages] = useState<Page[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,9 +49,7 @@ export default function PagesPage() {
       if (!token) return;
       setLoading(true);
       try {
-        const response = await apiFetch("/tenant/pages", {
-          token: token || undefined,
-        });
+        const response = await apiFetch("/tenant/pages");
         // Handle different response formats
         const pagesData = Array.isArray(response)
           ? response
@@ -73,12 +71,43 @@ export default function PagesPage() {
     fetchPages();
   }, [token]);
 
+  const getEditHref = (page: Page) => {
+    const rawType = String(
+      page.type || (page as any)?.form_type || ""
+    ).toLowerCase();
+    const slug = String(page.slug || "").toLowerCase();
+    const titleName = `${(page.title || "").toLowerCase()} ${(
+      page.name || ""
+    ).toLowerCase()}`;
+
+    const isLogin =
+      rawType === "login" ||
+      slug === "login" ||
+      /\blog(in)?\b|sign\s*in/.test(titleName);
+
+    const isRegistration =
+      rawType === "registration" ||
+      rawType === "register" ||
+      slug === "register" ||
+      slug === "registration" ||
+      /register|sign\s*up|registration/.test(titleName);
+
+    const isContact =
+      rawType === "contact" ||
+      slug === "contact" ||
+      /contact|support|feedback/.test(titleName);
+
+    if (isLogin) return `/page-builder/login?id=${page.id}`;
+    if (isRegistration) return `/page-builder/registration?id=${page.id}`;
+    if (isContact) return `/page-builder/contact?id=${page.id}`;
+    return `/page-builder/custom?id=${page.id}`;
+  };
+
   const handleDelete = async (pageId: string) => {
     if (confirm("Are you sure you want to delete this page?")) {
       try {
         await apiFetch(`/tenant/pages/${pageId}`, {
           method: "DELETE",
-          token: token || undefined,
         });
         // Remove from local state
         setPages((prev) => prev.filter((page) => page.id !== pageId));
@@ -141,7 +170,7 @@ export default function PagesPage() {
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Link href="/dashboard">
+              <Link href="/admin/dashboard">
                 <Button variant="ghost" size="sm">
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Back to Dashboard
@@ -234,9 +263,7 @@ export default function PagesPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
-                          <Link
-                            href={`/page-builder/registration?id=${page.id}`}
-                          >
+                          <Link href={getEditHref(page)}>
                             <Button variant="ghost" size="sm">
                               <Edit className="h-4 w-4" />
                             </Button>

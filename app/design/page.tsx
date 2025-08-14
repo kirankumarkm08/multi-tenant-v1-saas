@@ -1,119 +1,146 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, Upload, Palette, Type, Layout } from 'lucide-react'
-import Link from 'next/link'
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, Upload, Palette, Type, Layout } from "lucide-react";
+import Link from "next/link";
 
 interface DesignSettings {
   colors: {
-    primary: string
-    secondary: string
-    accent: string
-    background: string
-    text: string
-  }
+    primary: string;
+    secondary: string;
+    accent: string;
+    background: string;
+    text: string;
+  };
   fonts: {
-    heading: string
-    body: string
-  }
+    heading: string;
+    body: string;
+  };
   logo: {
-    url: string
-    alt: string
-  }
+    url: string;
+    alt: string;
+  };
   layout: {
-    maxWidth: string
-    spacing: string
-  }
+    maxWidth: string;
+    spacing: string;
+  };
 }
 
 const colorPresets = [
-  { name: 'Blue', primary: '#3b82f6', secondary: '#1e40af', accent: '#60a5fa' },
-  { name: 'Green', primary: '#10b981', secondary: '#047857', accent: '#34d399' },
-  { name: 'Purple', primary: '#8b5cf6', secondary: '#7c3aed', accent: '#a78bfa' },
-  { name: 'Red', primary: '#ef4444', secondary: '#dc2626', accent: '#f87171' },
-  { name: 'Orange', primary: '#f97316', secondary: '#ea580c', accent: '#fb923c' }
-]
+  { name: "Blue", primary: "#3b82f6", secondary: "#1e40af", accent: "#60a5fa" },
+  {
+    name: "Green",
+    primary: "#10b981",
+    secondary: "#047857",
+    accent: "#34d399",
+  },
+  {
+    name: "Purple",
+    primary: "#8b5cf6",
+    secondary: "#7c3aed",
+    accent: "#a78bfa",
+  },
+  { name: "Red", primary: "#ef4444", secondary: "#dc2626", accent: "#f87171" },
+  {
+    name: "Orange",
+    primary: "#f97316",
+    secondary: "#ea580c",
+    accent: "#fb923c",
+  },
+];
 
 const fontOptions = [
-  { name: 'Inter', value: 'Inter, sans-serif' },
-  { name: 'Roboto', value: 'Roboto, sans-serif' },
-  { name: 'Open Sans', value: 'Open Sans, sans-serif' },
-  { name: 'Lato', value: 'Lato, sans-serif' },
-  { name: 'Montserrat', value: 'Montserrat, sans-serif' },
-  { name: 'Poppins', value: 'Poppins, sans-serif' }
-]
+  { name: "Inter", value: "Inter, sans-serif" },
+  { name: "Roboto", value: "Roboto, sans-serif" },
+  { name: "Open Sans", value: "Open Sans, sans-serif" },
+  { name: "Lato", value: "Lato, sans-serif" },
+  { name: "Montserrat", value: "Montserrat, sans-serif" },
+  { name: "Poppins", value: "Poppins, sans-serif" },
+];
 
 export default function DesignPage() {
   const [settings, setSettings] = useState<DesignSettings>({
     colors: {
-      primary: '#3b82f6',
-      secondary: '#1e40af',
-      accent: '#60a5fa',
-      background: '#ffffff',
-      text: '#1f2937'
+      primary: "#3b82f6",
+      secondary: "#1e40af",
+      accent: "#60a5fa",
+      background: "#ffffff",
+      text: "#1f2937",
     },
     fonts: {
-      heading: 'Inter, sans-serif',
-      body: 'Inter, sans-serif'
+      heading: "Inter, sans-serif",
+      body: "Inter, sans-serif",
     },
     logo: {
-      url: '',
-      alt: 'Logo'
+      url: "",
+      alt: "Logo",
     },
     layout: {
-      maxWidth: '1200px',
-      spacing: 'normal'
-    }
-  })
+      maxWidth: "1200px",
+      spacing: "normal",
+    },
+  });
 
   useEffect(() => {
-    const savedSettings = localStorage.getItem('designSettings')
+    const savedSettings = localStorage.getItem("designSettings");
     if (savedSettings) {
-      setSettings(JSON.parse(savedSettings))
+      setSettings(JSON.parse(savedSettings));
     }
-  }, [])
+  }, []);
 
   const saveSettings = () => {
-    localStorage.setItem('designSettings', JSON.stringify(settings))
-    alert('Design settings saved successfully!')
-  }
+    localStorage.setItem("designSettings", JSON.stringify(settings));
+    alert("Design settings saved successfully!");
+  };
 
-  const applyColorPreset = (preset: typeof colorPresets[0]) => {
-    setSettings(prev => ({
+  const applyColorPreset = (preset: (typeof colorPresets)[0]) => {
+    setSettings((prev) => ({
       ...prev,
       colors: {
         ...prev.colors,
         primary: preset.primary,
         secondary: preset.secondary,
-        accent: preset.accent
-      }
-    }))
-  }
+        accent: preset.accent,
+      },
+    }));
+  };
 
-  const updateColor = (colorKey: keyof DesignSettings['colors'], value: string) => {
-    setSettings(prev => ({
+  const updateColor = (
+    colorKey: keyof DesignSettings["colors"],
+    value: string
+  ) => {
+    setSettings((prev) => ({
       ...prev,
       colors: {
         ...prev.colors,
-        [colorKey]: value
-      }
-    }))
-  }
+        [colorKey]: value,
+      },
+    }));
+  };
 
-  const updateFont = (fontKey: keyof DesignSettings['fonts'], value: string) => {
-    setSettings(prev => ({
+  const updateFont = (
+    fontKey: keyof DesignSettings["fonts"],
+    value: string
+  ) => {
+    setSettings((prev) => ({
       ...prev,
       fonts: {
         ...prev.fonts,
-        [fontKey]: value
-      }
-    }))
-  }
+        [fontKey]: value,
+      },
+    }));
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -121,7 +148,7 @@ export default function DesignPage() {
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Link href="/dashboard">
+              <Link href="/admin/dashboard">
                 <Button variant="ghost" size="sm">
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Back to Dashboard
@@ -129,12 +156,12 @@ export default function DesignPage() {
               </Link>
               <div>
                 <h1 className="text-2xl font-bold">Design Customization</h1>
-                <p className="text-gray-600">Customize your website appearance</p>
+                <p className="text-gray-600">
+                  Customize your website appearance
+                </p>
               </div>
             </div>
-            <Button onClick={saveSettings}>
-              Save Changes
-            </Button>
+            <Button onClick={saveSettings}>Save Changes</Button>
           </div>
         </div>
       </div>
@@ -167,7 +194,9 @@ export default function DesignPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Color Presets</CardTitle>
-                    <CardDescription>Quick color schemes to get started</CardDescription>
+                    <CardDescription>
+                      Quick color schemes to get started
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-5 gap-4">
@@ -191,7 +220,9 @@ export default function DesignPage() {
                               style={{ backgroundColor: preset.accent }}
                             />
                           </div>
-                          <span className="text-xs font-medium">{preset.name}</span>
+                          <span className="text-xs font-medium">
+                            {preset.name}
+                          </span>
                         </button>
                       ))}
                     </div>
@@ -201,7 +232,9 @@ export default function DesignPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Custom Colors</CardTitle>
-                    <CardDescription>Fine-tune your color palette</CardDescription>
+                    <CardDescription>
+                      Fine-tune your color palette
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
@@ -212,12 +245,16 @@ export default function DesignPage() {
                             id="primary-color"
                             type="color"
                             value={settings.colors.primary}
-                            onChange={(e) => updateColor('primary', e.target.value)}
+                            onChange={(e) =>
+                              updateColor("primary", e.target.value)
+                            }
                             className="w-16 h-10 p-1"
                           />
                           <Input
                             value={settings.colors.primary}
-                            onChange={(e) => updateColor('primary', e.target.value)}
+                            onChange={(e) =>
+                              updateColor("primary", e.target.value)
+                            }
                             placeholder="#3b82f6"
                           />
                         </div>
@@ -229,12 +266,16 @@ export default function DesignPage() {
                             id="secondary-color"
                             type="color"
                             value={settings.colors.secondary}
-                            onChange={(e) => updateColor('secondary', e.target.value)}
+                            onChange={(e) =>
+                              updateColor("secondary", e.target.value)
+                            }
                             className="w-16 h-10 p-1"
                           />
                           <Input
                             value={settings.colors.secondary}
-                            onChange={(e) => updateColor('secondary', e.target.value)}
+                            onChange={(e) =>
+                              updateColor("secondary", e.target.value)
+                            }
                             placeholder="#1e40af"
                           />
                         </div>
@@ -246,29 +287,39 @@ export default function DesignPage() {
                             id="accent-color"
                             type="color"
                             value={settings.colors.accent}
-                            onChange={(e) => updateColor('accent', e.target.value)}
+                            onChange={(e) =>
+                              updateColor("accent", e.target.value)
+                            }
                             className="w-16 h-10 p-1"
                           />
                           <Input
                             value={settings.colors.accent}
-                            onChange={(e) => updateColor('accent', e.target.value)}
+                            onChange={(e) =>
+                              updateColor("accent", e.target.value)
+                            }
                             placeholder="#60a5fa"
                           />
                         </div>
                       </div>
                       <div>
-                        <Label htmlFor="background-color">Background Color</Label>
+                        <Label htmlFor="background-color">
+                          Background Color
+                        </Label>
                         <div className="flex space-x-2">
                           <Input
                             id="background-color"
                             type="color"
                             value={settings.colors.background}
-                            onChange={(e) => updateColor('background', e.target.value)}
+                            onChange={(e) =>
+                              updateColor("background", e.target.value)
+                            }
                             className="w-16 h-10 p-1"
                           />
                           <Input
                             value={settings.colors.background}
-                            onChange={(e) => updateColor('background', e.target.value)}
+                            onChange={(e) =>
+                              updateColor("background", e.target.value)
+                            }
                             placeholder="#ffffff"
                           />
                         </div>
@@ -282,7 +333,9 @@ export default function DesignPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Typography</CardTitle>
-                    <CardDescription>Choose fonts for headings and body text</CardDescription>
+                    <CardDescription>
+                      Choose fonts for headings and body text
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
@@ -290,7 +343,7 @@ export default function DesignPage() {
                       <select
                         id="heading-font"
                         value={settings.fonts.heading}
-                        onChange={(e) => updateFont('heading', e.target.value)}
+                        onChange={(e) => updateFont("heading", e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                       >
                         {fontOptions.map((font) => (
@@ -305,7 +358,7 @@ export default function DesignPage() {
                       <select
                         id="body-font"
                         value={settings.fonts.body}
-                        onChange={(e) => updateFont('body', e.target.value)}
+                        onChange={(e) => updateFont("body", e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                       >
                         {fontOptions.map((font) => (
@@ -331,10 +384,12 @@ export default function DesignPage() {
                       <Input
                         id="logo-url"
                         value={settings.logo.url}
-                        onChange={(e) => setSettings(prev => ({
-                          ...prev,
-                          logo: { ...prev.logo, url: e.target.value }
-                        }))}
+                        onChange={(e) =>
+                          setSettings((prev) => ({
+                            ...prev,
+                            logo: { ...prev.logo, url: e.target.value },
+                          }))
+                        }
                         placeholder="https://example.com/logo.png"
                       />
                     </div>
@@ -343,10 +398,12 @@ export default function DesignPage() {
                       <Input
                         id="logo-alt"
                         value={settings.logo.alt}
-                        onChange={(e) => setSettings(prev => ({
-                          ...prev,
-                          logo: { ...prev.logo, alt: e.target.value }
-                        }))}
+                        onChange={(e) =>
+                          setSettings((prev) => ({
+                            ...prev,
+                            logo: { ...prev.logo, alt: e.target.value },
+                          }))
+                        }
                         placeholder="Your company logo"
                       />
                     </div>
@@ -367,7 +424,9 @@ export default function DesignPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Layout Settings</CardTitle>
-                    <CardDescription>Configure your website layout</CardDescription>
+                    <CardDescription>
+                      Configure your website layout
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
@@ -375,10 +434,15 @@ export default function DesignPage() {
                       <select
                         id="max-width"
                         value={settings.layout.maxWidth}
-                        onChange={(e) => setSettings(prev => ({
-                          ...prev,
-                          layout: { ...prev.layout, maxWidth: e.target.value }
-                        }))}
+                        onChange={(e) =>
+                          setSettings((prev) => ({
+                            ...prev,
+                            layout: {
+                              ...prev.layout,
+                              maxWidth: e.target.value,
+                            },
+                          }))
+                        }
                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                       >
                         <option value="1200px">1200px (Default)</option>
@@ -392,10 +456,12 @@ export default function DesignPage() {
                       <select
                         id="spacing"
                         value={settings.layout.spacing}
-                        onChange={(e) => setSettings(prev => ({
-                          ...prev,
-                          layout: { ...prev.layout, spacing: e.target.value }
-                        }))}
+                        onChange={(e) =>
+                          setSettings((prev) => ({
+                            ...prev,
+                            layout: { ...prev.layout, spacing: e.target.value },
+                          }))
+                        }
                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                       >
                         <option value="compact">Compact</option>
@@ -417,26 +483,26 @@ export default function DesignPage() {
                 <CardDescription>See how your changes look</CardDescription>
               </CardHeader>
               <CardContent>
-                <div 
+                <div
                   className="border rounded-lg p-4 space-y-4"
-                  style={{ 
+                  style={{
                     backgroundColor: settings.colors.background,
                     color: settings.colors.text,
-                    fontFamily: settings.fonts.body
+                    fontFamily: settings.fonts.body,
                   }}
                 >
                   {settings.logo.url && (
-                    <img 
-                      src={settings.logo.url || "/placeholder.svg"} 
+                    <img
+                      src={settings.logo.url || "/placeholder.svg"}
                       alt={settings.logo.alt}
                       className="h-8 object-contain"
                     />
                   )}
-                  <h1 
+                  <h1
                     className="text-xl font-bold"
-                    style={{ 
+                    style={{
                       color: settings.colors.primary,
-                      fontFamily: settings.fonts.heading
+                      fontFamily: settings.fonts.heading,
                     }}
                   >
                     Sample Heading
@@ -452,9 +518,9 @@ export default function DesignPage() {
                   </button>
                   <button
                     className="px-4 py-2 rounded text-sm font-medium border ml-2"
-                    style={{ 
+                    style={{
                       borderColor: settings.colors.secondary,
-                      color: settings.colors.secondary
+                      color: settings.colors.secondary,
                     }}
                   >
                     Secondary Button
@@ -466,5 +532,5 @@ export default function DesignPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

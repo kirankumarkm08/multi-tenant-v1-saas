@@ -43,7 +43,7 @@ export default function LandingPage() {
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
 
-   const navItems = [
+  const navItems = [
     {
       label: "Home",
       href: "/",
@@ -60,8 +60,7 @@ export default function LandingPage() {
       label: "Register",
       href: "/registration",
     },
-    
-   ]
+  ];
 
   useEffect(() => {
     if (token) {
@@ -72,9 +71,7 @@ export default function LandingPage() {
   const fetchForms = async () => {
     try {
       // Fetch login form
-      const loginResponse = await apiFetch("/tenant/pages?type=login", {
-        token: token || undefined,
-      });
+      const loginResponse = await apiFetch("/tenant/pages?type=login");
       const loginData = Array.isArray(loginResponse)
         ? loginResponse[0]
         : loginResponse?.data?.[0] || loginResponse;
@@ -88,9 +85,7 @@ export default function LandingPage() {
       }
 
       // Fetch registration form
-      const regResponse = await apiFetch("/tenant/pages?type=register", {
-        token: token || undefined,
-      });
+      const regResponse = await apiFetch("/tenant/pages?type=register");
       const regData = Array.isArray(regResponse)
         ? regResponse[0]
         : regResponse?.data?.[0] || regResponse;
@@ -206,7 +201,7 @@ export default function LandingPage() {
 
             {/* Desktop Navigation */}
             <div className=" flex gap-2">
-               {navItems.map((item) => (
+              {navItems.map((item) => (
                 <Link key={item.href} href={item.href}>
                   <Button variant="outline" size="sm">
                     {item.label}
@@ -214,7 +209,6 @@ export default function LandingPage() {
                 </Link>
               ))}
             </div>
-           
 
             {/* Mobile menu button */}
             <div className="md:hidden">
@@ -233,7 +227,7 @@ export default function LandingPage() {
           </div>
 
           {/* Mobile Navigation */}
-          {mobileMenuOpen && (
+          {/* {mobileMenuOpen && (
             <div className="md:hidden py-4 border-t">
               <div className="flex flex-col space-y-2">
                 <button
@@ -272,19 +266,19 @@ export default function LandingPage() {
                 >
                   Register
                 </button>
-                <Link href="/user">
+                <Link href="/admin-login">
                   <Button
                     variant="outline"
                     size="sm"
                     className="w-full justify-start"
                   >
                     <User className="mr-2 h-4 w-4" />
-                    User Dashboard
+                    admin login
                   </Button>
                 </Link>
               </div>
             </div>
-          )}
+          )} */}
         </div>
       </nav>
 
@@ -316,10 +310,10 @@ export default function LandingPage() {
               >
                 Learn More
               </Button>
-              <Link href="/user">
+              <Link href="/admin-login">
                 <Button variant="outline" size="lg">
                   <User className="mr-2 h-5 w-5" />
-                  User Dashboard
+                  admin-login
                 </Button>
               </Link>
             </div>

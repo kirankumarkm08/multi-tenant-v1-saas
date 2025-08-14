@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiFetch } from "@/lib/api-config";
 import { useAuth } from "@/context/AuthContext";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 interface FormField {
   id: string;
@@ -34,18 +34,18 @@ interface FormConfigPage {
 export default function LoginPageById() {
   const params = useParams();
   const id = (params as any)?.id as string;
-  const { token } = useAuth();
+  const { setToken } = useAuth();
+  const router = useRouter();
   const [page, setPage] = useState<FormConfigPage | null>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!token || !id) return;
+    if (!id) return;
     const loadPage = async () => {
       try {
-        const data = await apiFetch(`/tenant/pages/${id}`, {
-          token: token || undefined,
-        });
+        const data = await apiFetch(`/tenant/pages/${id}`);
         const formConfigRaw =
           typeof data.form_config === "string"
             ? JSON.parse(data.form_config)
@@ -72,7 +72,25 @@ export default function LoginPageById() {
       }
     };
     loadPage();
-  }, [token, id]);
+  }, [id]);
+
+  const usernameFieldName = useMemo(() => {
+    const fields = page?.form_config || [];
+    const emailField = fields.find((f) => f.name?.toLowerCase() === "email");
+    if (emailField) return emailField.name;
+    const userField = fields.find((f) => f.name?.toLowerCase() === "username");
+    if (userField) return userField.name;
+    const firstText = fields.find((f as any) => (f as any).type === "text");
+    return (firstText as any)?.name || "email";
+  }, [page]);
+
+  const passwordFieldName = useMemo(() => {
+    const fields = page?.form_config || [];
+    const pwdType = fields.find((f as any) => (f as any).type === "password");
+    if (pwdType) return (pwdType as any).name;
+    const pwdName = fields.find((f) => f.name?.toLowerCase() === "password");
+    return pwdName?.name || "password";
+  }, [page]);
 
   const handleChange = (fieldName: string, value: any) => {
     setFormData((prev) => ({ ...prev, [fieldName]: value }));
@@ -81,22 +99,32 @@ export default function LoginPageById() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
     try {
-      const fields = page?.form_config || [];
-      const payload = fields.reduce((acc, field) => {
-        const value = formData[field.name];
-        if (value !== undefined) acc[field.name] = value;
-        return acc;
-      }, {} as Record<string, any>);
+      const identifier = formData[usernameFieldName];
+      const password = formData[passwordFieldName];
+      if (!identifier || !password) {
+        throw new Error("Please enter credentials");
+      }
 
-      console.log("login submit payload:", payload);
-      alert(page?.settings?.successMessage || "Login submitted successfully!");
+      const response = await apiFetch("/tenant/login", {
+        method: "POST",
+        body: JSON.stringify({
+          email: identifier,
+          username: identifier,
+          password,
+        }),
+      });
 
-      const cleared: Record<string, any> = { ...formData };
-      fields.forEach((f) => delete cleared[f.name]);
-      setFormData(cleared);
+      const accessToken = response?.data?.access_token || response?.access_token;
+      if (!accessToken) {
+        throw new Error(response?.message || "Invalid credentials");
+      }
+
+      setToken(accessToken);
+      router.push("/admin/dashboard");
     } catch (err) {
-      alert("Failed to submit login");
+      setError((err as any)?.message || "Login failed");
     } finally {
       setLoading(false);
     }
@@ -141,6 +169,9 @@ export default function LoginPageById() {
                         />
                       </div>
                     ))}
+                  {error && (
+                    <p className="text-center text-red-600 text-sm">{error}</p>
+                  )}
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading
                       ? "Submitting..."
