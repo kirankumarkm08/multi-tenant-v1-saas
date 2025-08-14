@@ -41,7 +41,7 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const res = await fetch("http://165.227.182.17/api/tenant/login", {
+      const res = await fetch("https://165.227.182.17/api/tenant/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
