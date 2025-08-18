@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import { apiFetch } from "@/lib/api-config";
+import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -15,6 +16,7 @@ export default function LoginPage() {
 
   const router = useRouter();
   const { setToken } = useAuth();
+  const { toast } = useToast();
 
   useEffect(() => {
     // If already authenticated, go straight to dashboard
@@ -22,6 +24,17 @@ export default function LoginPage() {
       typeof window !== "undefined"
         ? localStorage.getItem("access_token")
         : null;
+    // Show reason for redirect, if any
+    if (typeof window !== "undefined") {
+      const reason = localStorage.getItem("auth_redirect_reason");
+      if (reason) {
+        toast({
+          title: "Please sign in",
+          description: reason,
+        });
+        localStorage.removeItem("auth_redirect_reason");
+      }
+    }
     if (storedToken) {
       router.replace("/admin/dashboard");
     }
@@ -53,19 +66,32 @@ export default function LoginPage() {
     setError("");
 
     try {
+      console.log("Login - Attempting login with email:", email);
       const response = await apiFetch("/tenant/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
+
+      console.log("Login - Response received:", response);
 
       if (!response?.data?.access_token) {
         throw new Error(response?.message || "Invalid email or password");
       }
 
       const token = response.data.access_token;
+      console.log("Login - Token extracted:", token ? "Present" : "Missing");
       setToken(token);
+
+      // Verify token was stored
+      const storedToken = localStorage.getItem("access_token");
+      console.log(
+        "Login - Token stored in localStorage:",
+        storedToken ? "Present" : "Missing"
+      );
+
       router.push("/admin/dashboard");
     } catch (err: any) {
+      console.error("Login - Error:", err);
       setError(err.message || "Login failed. Please try again.");
     } finally {
       setLoading(false);

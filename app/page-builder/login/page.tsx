@@ -10,6 +10,7 @@ import { Save, Eye, ArrowLeft, Loader2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api-config";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useAuth } from "@/context/AuthContext";
 
 interface LoginPageSettings {
   usernameLabel: string;
@@ -30,6 +31,8 @@ interface LoginPage {
 }
 
 export default function LoginPageBuilder() {
+  const { token } = useAuth();
+
   const [page, setPage] = useState<LoginPage>({
     id: "",
     name: "Login Page",
@@ -54,25 +57,43 @@ export default function LoginPageBuilder() {
   const [isLoadingPages, setIsLoadingPages] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const pageId = params.get("id");
-
-      // Load available pages first
-      loadAvailablePages();
-
-      if (pageId) {
-        loadPage(pageId);
-      }
+    if (!token) {
+      console.log("Login Page Builder - No token available");
+      return;
     }
-  }, []);
+
+    console.log("Login Page Builder - Token available, checking for page ID");
+    const pageId = new URLSearchParams(window.location.search).get("id");
+    if (pageId) {
+      console.log("Login Page Builder - Loading page with ID:", pageId);
+      loadPage(pageId);
+    } else {
+      console.log("Login Page Builder - No page ID, creating new page");
+      setPage({
+        id: "",
+        name: "Login Page",
+        slug: "login",
+        title: "Login to Your Account",
+        description: "Please enter your credentials to access your account",
+        settings: {
+          usernameLabel: "Username or Email",
+          passwordLabel: "Password",
+          submitButtonText: "Sign In",
+          forgotPasswordLink: true,
+          registerLink: true,
+          rememberMeOption: true,
+        },
+      });
+      window.history.pushState({}, "", "?");
+    }
+  }, [token]);
 
   const loadAvailablePages = async () => {
     try {
       setIsLoadingPages(true);
       let response: any = null;
       try {
-        response = await apiFetch("/tenant/pages?type=login");
+        response = await apiFetch("/tenant/pages?page_type=login");
       } catch (_e) {}
       if (
         !response ||
@@ -82,8 +103,19 @@ export default function LoginPageBuilder() {
           response.data.length === 0)
       ) {
         try {
-          response = await apiFetch("/tenant/pages?form_type=login");
+          response = await apiFetch("/tenant/pages?type=login");
         } catch (_e2) {}
+      }
+      if (
+        !response ||
+        (Array.isArray(response) && response.length === 0) ||
+        (response?.data &&
+          Array.isArray(response.data) &&
+          response.data.length === 0)
+      ) {
+        try {
+          response = await apiFetch("/tenant/pages?form_type=login");
+        } catch (_e3) {}
       }
 
       let pages = [];
@@ -202,8 +234,20 @@ export default function LoginPageBuilder() {
         try {
           let existingResponse: any = null;
           try {
-            existingResponse = await apiFetch("/tenant/pages?type=login");
+            existingResponse = await apiFetch("/tenant/pages?page_type=login");
           } catch (_e) {}
+          if (
+            !existingResponse ||
+            (Array.isArray(existingResponse) &&
+              existingResponse.length === 0) ||
+            (existingResponse?.data &&
+              Array.isArray(existingResponse.data) &&
+              existingResponse.data.length === 0)
+          ) {
+            try {
+              existingResponse = await apiFetch("/tenant/pages?type=login");
+            } catch (_e2) {}
+          }
           if (
             !existingResponse ||
             (Array.isArray(existingResponse) &&
@@ -216,7 +260,7 @@ export default function LoginPageBuilder() {
               existingResponse = await apiFetch(
                 "/tenant/pages?form_type=login"
               );
-            } catch (_e2) {}
+            } catch (_e3) {}
           }
           const existingList = Array.isArray(existingResponse)
             ? existingResponse
@@ -255,12 +299,9 @@ export default function LoginPageBuilder() {
 
       const buildRequestData = (slug: string) => ({
         title: page.title,
-        name: page.name,
         slug,
-        form_type: "login",
-        type: "login",
+        page_type: "login",
         form_config: JSON.stringify(form_config),
-        description: page.description || "",
         settings: JSON.stringify({
           submitButtonText: page.settings.submitButtonText,
           description: page.description,
@@ -271,7 +312,7 @@ export default function LoginPageBuilder() {
       });
 
       const endpoint = targetId ? `/tenant/pages/${targetId}` : `/tenant/pages`;
-      const method = targetId ? "PATCH" : "POST";
+      const method = targetId ? "PUT" : "POST";
 
       const saved = await apiFetch(endpoint, {
         method,

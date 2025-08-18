@@ -57,7 +57,7 @@ interface RegistrationPage {
   title: string;
   slug: string;
   // position: number;
-  form_type: string;
+  page_type: string;
   form_config: FormField[];
   settings: PageSettings;
 }
@@ -111,12 +111,14 @@ const defaultFields: FormField[] = [
 ];
 
 export default function RegistrationPageBuilder() {
+  const { token, isInitialized } = useAuth();
+
   const [page, setPage] = useState<RegistrationPage>({
     id: "",
     title: "Event Registration",
     slug: "",
     // position: "",
-    form_type: "register",
+    page_type: "register",
     form_config: defaultFields, // <-- fix: use array
     settings: {
       submitButtonText: "Register Now",
@@ -124,24 +126,55 @@ export default function RegistrationPageBuilder() {
       redirectUrl: "",
     },
   });
-  const { token } = useAuth();
-  console.log(token);
+
+  console.log(
+    "Registration Page Builder - Token:",
+    token ? "Present" : "Missing"
+  );
+  console.log("Registration Page Builder - Is Initialized:", isInitialized);
+  console.log(
+    "Registration Page Builder - localStorage token:",
+    typeof window !== "undefined"
+      ? localStorage.getItem("access_token")
+        ? "Present"
+        : "Missing"
+      : "Server-side"
+  );
 
   const [isSaving, setIsSaving] = useState(false);
   const [draggedField, setDraggedField] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!token) return;
+    if (!isInitialized) {
+      console.log("Registration Page Builder - Auth not initialized yet");
+      return;
+    }
+
+    if (!token) {
+      console.log("Registration Page Builder - No token available");
+      return;
+    }
+
+    console.log(
+      "Registration Page Builder - Token available, checking for page ID"
+    );
     const pageId = new URLSearchParams(window.location.search).get("id");
     if (pageId) {
+      console.log("Registration Page Builder - Loading page with ID:", pageId);
       loadPage(pageId);
+    } else {
+      console.log("Registration Page Builder - No page ID, using default page");
     }
-  }, [token]);
+  }, [token, isInitialized]);
 
   const loadPage = async (pageId: string) => {
     try {
-      const data = await apiFetch(`/tenant/pages/${pageId}`);
-      // Parse form_config if it comes as a JSON string
+      const data = await apiFetch(`/tenant/pages/${pageId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+  
       const formConfigRaw =
         typeof data.form_config === "string"
           ? JSON.parse(data.form_config)
@@ -149,20 +182,18 @@ export default function RegistrationPageBuilder() {
       const formConfig: FormField[] = Array.isArray(formConfigRaw)
         ? formConfigRaw
         : [];
-
-      // Parse settings if it comes as a JSON string
+  
       const settingsParsed =
         typeof data.settings === "string"
           ? JSON.parse(data.settings)
           : data.settings;
-
+  
       setPage({
         ...data,
         form_config: formConfig,
         settings: settingsParsed || {
           submitButtonText: "Register Now",
-          successMessage:
-            "Thank you for registering! We will contact you soon.",
+          successMessage: "Thank you for registering! We will contact you soon.",
           redirectUrl: "",
         },
       });
@@ -171,6 +202,48 @@ export default function RegistrationPageBuilder() {
       alert("Failed to load page data");
     }
   };
+  
+  
+  // const savePage = async () => {
+  //   setIsSaving(true);
+  //   try {
+  //     const requestData = {
+  //       title: page.title,
+  //       slug: page.slug || null,
+  //       page_type: page.page_type,
+  //       form_config: JSON.stringify(page.form_config),
+  //       settings: JSON.stringify(page.settings),
+  //     };
+  
+  //     const endpoint = page.id ? `/tenant/pages/${page.id}` : `/tenant/pages`;
+  //     const method = page.id ? "PUT" : "POST";
+  
+  //     console.log("📤 Saving page:", { endpoint, method, requestData });
+  
+  //     const savedPage = await apiFetch(endpoint, {
+  //       method,
+  //       body: JSON.stringify(requestData),
+  //     });
+  
+  //     if (!page.id) {
+  //       setPage((prev) => ({ ...prev, id: savedPage.id }));
+  //       window.history.pushState({}, "", `?id=${savedPage.id}`);
+  //     }
+  
+  //     alert("Page saved successfully!");
+  //   } catch (error: any) {
+  //     console.error("Full error details:", error?.data || error);
+  //     if (error?.data?.errors) {
+  //       const errorMessages = Object.values(error.data.errors).flat().join("\n");
+  //       alert(`Validation failed:\n${errorMessages}`);
+  //     } else {
+  //       alert(error.message || "Failed to save page");
+  //     }
+  //   } finally {
+  //     setIsSaving(false);
+  //   }
+  // };
+  
 
   const addField = () => {
     const newField: FormField = {
@@ -216,97 +289,43 @@ export default function RegistrationPageBuilder() {
     }));
   };
 
-  //  const savePage = async () => {
-  //    setIsSaving(true);
-
-  //    try {
-  //      // Prepare the data - simplified version without unnecessary fields
-  //      const requestData = {
-  //        title: page.title,
-  //        slug: page.slug || null,
-  //        position: page.position || null,
-  //        form_type: page.form_type,
-  //        form_config: page.form_config, // Send as array
-  //        settings: page.settings, // Don't stringify unless backend requires it
-  //      };
-
-  //      const endpoint = page.id
-  //        ? `/api/tenant/pages/${page.id}`
-  //        : "/api/tenant/pages";
-  //      const method = page.id ? "PUT" : "POST";
-
-  //      // Use apiFetch which handles environment differences
-  //      const savedPage = await apiFetch(endpoint, {
-  //        method,
-  //        headers: {
-  //          "Content-Type": "application/json",
-  //          Accept: "application/json",
-  //        },
-  //        body: JSON.stringify(requestData),
-  //      });
-
-  //      if (!page.id) {
-  //        setPage((prev) => ({ ...prev, id: savedPage.id }));
-  //        window.history.pushState({}, "", `?id=${savedPage.id}`);
-  //      }
-
-  //      alert("Page saved successfully!");
-  //    } catch (error: any) {
-  //      console.error("Failed to save page:", error);
-
-  //      // Improved error handling that works with both direct and proxied requests
-  //      let errorMessage = "Failed to save page";
-
-  //      if (error.response) {
-  //        try {
-  //          const errorData = await error.response.json();
-  //          errorMessage =
-  //            errorData.message ||
-  //            (errorData.errors
-  //              ? Object.values(errorData.errors).flat().join("\n")
-  //              : "Validation failed");
-  //        } catch (e) {
-  //          errorMessage = error.response.statusText;
-  //        }
-  //      } else if (error.message) {
-  //        errorMessage = error.message;
-  //      }
-
-  //      alert(errorMessage);
-  //    } finally {
-  //      setIsSaving(false);
-  //    }
-  //  };
+  
 
   const savePage = async () => {
     setIsSaving(true);
     try {
       const requestData = {
         title: page.title,
-        slug: page.slug || null, // Ensure `null` for empty values
-        // position: "",
-        form_type: page.form_type,
-        form_config: JSON.stringify(page.form_config), // Stringify if Laravel expects JSON
-        settings: JSON.stringify(page.settings), // Stringify if needed
+        slug: page.slug || null,
+        page_type: page.page_type,
+        form_config: JSON.stringify(page.form_config), // Laravel expects string
+        settings: JSON.stringify(page.settings),
       };
+  
       const endpoint = page.id ? `/tenant/pages/${page.id}` : `/tenant/pages`;
       const method = page.id ? "PUT" : "POST";
+  
+      console.log("📤 Saving page:", { endpoint, method, requestData });
+  
       const savedPage = await apiFetch(endpoint, {
         method,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(requestData),
       });
+  
       if (!page.id) {
         setPage((prev) => ({ ...prev, id: savedPage.id }));
         window.history.pushState({}, "", `?id=${savedPage.id}`);
       }
+  
       alert("Page saved successfully!");
     } catch (error: any) {
-      console.error("Full error details:", error.data); // Log validation errors
-      if (error.data?.errors) {
-        // Display all validation errors
-        const errorMessages = Object.values(error.data.errors)
-          .flat()
-          .join("\n");
+      console.error("Full error details:", error?.data || error);
+      if (error?.data?.errors) {
+        const errorMessages = Object.values(error.data.errors).flat().join("\n");
         alert(`Validation failed:\n${errorMessages}`);
       } else {
         alert(error.message || "Failed to save page");
@@ -315,6 +334,8 @@ export default function RegistrationPageBuilder() {
       setIsSaving(false);
     }
   };
+  
+  
 
   const handleDragStart = (e: React.DragEvent, fieldId: string) => {
     setDraggedField(fieldId);
@@ -351,32 +372,14 @@ export default function RegistrationPageBuilder() {
     setDraggedField(null);
   };
 
-  if (!token) {
-    return (
-      <div className="text-red-600 font-bold p-8 text-center">
-        API key missing or invalid. Access denied.
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="border-b bg-white">
-        <div className="container mx-auto px-6 py-4">
+      <div className="container mx-auto p-6">
+        <div className="mb-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Link href="/admin/dashboard">
-                <Button variant="ghost" size="sm">
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to Dashboard
-                </Button>
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold">
-                  Registration Page Builder
-                </h1>
-                <Badge variant="secondary">Registration Form</Badge>
-              </div>
+            <div>
+              <h1 className="text-2xl font-bold">Registration Page Builder</h1>
+              <Badge variant="secondary">Registration Form</Badge>
             </div>
             <div className="flex items-center space-x-2">
               <Link href={`/preview/registration/${page.id}`}>
@@ -401,9 +404,7 @@ export default function RegistrationPageBuilder() {
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="container mx-auto p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Settings Panel */}
           <div className="lg:col-span-1 space-y-6">
@@ -424,11 +425,22 @@ export default function RegistrationPageBuilder() {
                   />
                 </div>
                 <div>
+                  <Label htmlFor="page-slug">Page Slug</Label>
+                  <Input
+                    id="page-slug"
+                    value={page.slug}
+                    onChange={(e) =>
+                      setPage((prev) => ({ ...prev, slug: e.target.value }))
+                    }
+                    placeholder="event-registration"
+                  />
+                </div>
+                <div>
                   <Label htmlFor="form-type">Form Type</Label>
                   <Select
-                    value={page.form_type}
+                    value={page.page_type}
                     onValueChange={(value) =>
-                      setPage((prev) => ({ ...prev, form_type: value }))
+                      setPage((prev) => ({ ...prev, page_type: value }))
                     }
                   >
                     <SelectTrigger>
@@ -446,7 +458,7 @@ export default function RegistrationPageBuilder() {
                   <Label htmlFor="submit-text">Submit Button Text</Label>
                   <Input
                     id="submit-text"
-                    // value={page.settings.submitButtonText}
+                    value={page.settings.submitButtonText}
                     onChange={(e) =>
                       setPage((prev) => ({
                         ...prev,
@@ -463,7 +475,7 @@ export default function RegistrationPageBuilder() {
                   <Label htmlFor="success-message">Success Message</Label>
                   <Input
                     id="success-message"
-                    // value={page.settings.successMessage}
+                    value={page.settings.successMessage}
                     onChange={(e) =>
                       setPage((prev) => ({
                         ...prev,

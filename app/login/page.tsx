@@ -54,7 +54,7 @@ export default function LoginPage() {
         // Fetch the first available login page
         let response: any = null;
         try {
-          response = await apiFetch("/tenant/pages?type=login");
+          response = await apiFetch("/tenant/pages?page_type=login");
         } catch (_e) {}
         if (
           !response ||
@@ -64,8 +64,19 @@ export default function LoginPage() {
             response.data.length === 0)
         ) {
           try {
-            response = await apiFetch("/tenant/pages?form_type=login");
+            response = await apiFetch("/tenant/pages?type=login");
           } catch (_e2) {}
+        }
+        if (
+          !response ||
+          (Array.isArray(response) && response.length === 0) ||
+          (response?.data &&
+            Array.isArray(response.data) &&
+            response.data.length === 0)
+        ) {
+          try {
+            response = await apiFetch("/tenant/pages?form_type=login");
+          } catch (_e3) {}
         }
 
         let loginData;

@@ -1,10 +1,7 @@
 export const API_CONFIG = {
   // Default to internal proxy to avoid mixed content on Vercel and keep HTTPS in browser
   // Set NEXT_PUBLIC_API_BASE_URL to a full HTTPS origin (e.g., https://api.yourdomain.com) when available
-  BASE_URL: (process.env.NEXT_PUBLIC_API_BASE_URL || "/api").replace(
-    /\/+$/,
-    ""
-  ),
+  BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || "",
   BEARER_TOKEN: process.env.NEXT_PUBLIC_API_BEARER_TOKEN || "",
 };
 
@@ -21,7 +18,7 @@ export async function apiFetch(
   // If running in the browser, also try localStorage (set during login)
   const tokenFromStorage =
     typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-  const token = options.token ?? tokenFromStorage ?? API_CONFIG.BEARER_TOKEN;
+  const token = tokenFromStorage ?? API_CONFIG.BEARER_TOKEN;
 
   const defaultHeaders: HeadersInit = {
     "Content-Type": "application/json",

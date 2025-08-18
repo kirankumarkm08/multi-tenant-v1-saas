@@ -161,25 +161,129 @@ export default function LandingPage() {
 
         {formConfig.form_config
           .sort((a, b) => a.order - b.order)
-          .map((field) => (
-            <div key={field.id}>
+          .map((field) => {
+            const value = formData[`${formType}_${field.name}`] || "";
+            const setVal = (v: any) =>
+              handleFormChange(formType, field.name, v);
+
+            const labelEl = (
               <Label htmlFor={`${formType}_${field.name}`}>
                 {field.label}
                 {field.required && <span className="text-red-500 ml-1">*</span>}
               </Label>
-              <Input
-                id={`${formType}_${field.name}`}
-                type={field.type}
-                required={field.required}
-                placeholder={field.placeholder}
-                value={formData[`${formType}_${field.name}`] || ""}
-                onChange={(e) =>
-                  handleFormChange(formType, field.name, e.target.value)
-                }
-                className="mt-1"
-              />
-            </div>
-          ))}
+            );
+
+            if (field.type === "textarea") {
+              return (
+                <div key={field.id}>
+                  {labelEl}
+                  <textarea
+                    id={`${formType}_${field.name}`}
+                    required={field.required}
+                    placeholder={field.placeholder}
+                    value={value}
+                    onChange={(e) => setVal(e.target.value)}
+                    className="w-full mt-1 px-3 py-2 border rounded"
+                    rows={4}
+                  />
+                </div>
+              );
+            }
+
+            if (field.type === "select") {
+              const options = Array.isArray(field.options) ? field.options : [];
+              return (
+                <div key={field.id}>
+                  {labelEl}
+                  <select
+                    id={`${formType}_${field.name}`}
+                    required={field.required}
+                    value={value}
+                    onChange={(e) => setVal(e.target.value)}
+                    className="w-full mt-1 px-3 py-2 border rounded bg-white"
+                  >
+                    <option value="" disabled>
+                      {field.placeholder || "Select an option"}
+                    </option>
+                    {options.map((opt, idx) => (
+                      <option key={idx} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              );
+            }
+
+            if (field.type === "checkbox") {
+              const checked = Boolean(value);
+              return (
+                <div key={field.id}>
+                  <label className="inline-flex items-center space-x-2 mt-1">
+                    <input
+                      id={`${formType}_${field.name}`}
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => setVal(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <span>{field.placeholder || field.label}</span>
+                  </label>
+                </div>
+              );
+            }
+
+            if (field.type === "radio") {
+              const options = Array.isArray(field.options) ? field.options : [];
+              return (
+                <div key={field.id}>
+                  {labelEl}
+                  <div className="mt-1 space-y-2">
+                    {options.map((opt, idx) => (
+                      <label
+                        key={idx}
+                        className="inline-flex items-center space-x-2"
+                      >
+                        <input
+                          type="radio"
+                          name={`${formType}_${field.name}`}
+                          value={opt}
+                          checked={value === opt}
+                          onChange={(e) => setVal(e.target.value)}
+                          className="h-4 w-4"
+                        />
+                        <span>{opt}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              );
+            }
+
+            const inputType = [
+              "text",
+              "email",
+              "tel",
+              "number",
+              "password",
+            ].includes(field.type)
+              ? field.type
+              : "text";
+            return (
+              <div key={field.id}>
+                {labelEl}
+                <Input
+                  id={`${formType}_${field.name}`}
+                  type={inputType}
+                  required={field.required}
+                  placeholder={field.placeholder}
+                  value={value}
+                  onChange={(e) => setVal(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+            );
+          })}
 
         <Button type="submit" className="w-full" disabled={loading}>
           {loading ? "Submitting..." : formConfig.settings.submitButtonText}

@@ -29,6 +29,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         typeof window !== "undefined"
           ? localStorage.getItem("access_token")
           : null;
+      console.log(
+        "AuthContext - Loading token from localStorage:",
+        storedToken ? "Present" : "Missing"
+      );
       if (storedToken) {
         setTokenState(storedToken);
       }
@@ -38,11 +42,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const setToken = (newToken: string) => {
+    console.log(
+      "AuthContext - Setting token:",
+      newToken ? "Present" : "Missing"
+    );
     localStorage.setItem("access_token", newToken);
     setTokenState(newToken);
   };
 
   const logout = () => {
+    console.log("AuthContext - Logging out, clearing token");
     localStorage.removeItem("access_token");
     setTokenState(null);
     router.push("/admin-login");

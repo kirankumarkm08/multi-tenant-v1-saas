@@ -51,7 +51,7 @@ export default function ContactPage() {
       try {
         let res: any = null;
         try {
-          res = await apiFetch("/tenant/pages?type=contact");
+          res = await apiFetch("/tenant/pages?page_type=contact");
         } catch (_e) {}
         if (
           !res ||
@@ -59,8 +59,17 @@ export default function ContactPage() {
           (res?.data && Array.isArray(res.data) && res.data.length === 0)
         ) {
           try {
-            res = await apiFetch("/tenant/pages?form_type=contact");
+            res = await apiFetch("/tenant/pages?type=contact");
           } catch (_e2) {}
+        }
+        if (
+          !res ||
+          (Array.isArray(res) && res.length === 0) ||
+          (res?.data && Array.isArray(res.data) && res.data.length === 0)
+        ) {
+          try {
+            res = await apiFetch("/tenant/pages?form_type=contact");
+          } catch (_e3) {}
         }
         let first: any = null;
         if (Array.isArray(res)) first = res[0];

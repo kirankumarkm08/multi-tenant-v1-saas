@@ -28,6 +28,7 @@ interface Page {
   name?: string;
   title?: string;
   type?: string;
+  page_type?: string; // Add this field based on your API response
   slug?: string;
   modules?: any[];
   settings?: {
@@ -36,6 +37,8 @@ interface Page {
   };
   createdAt?: string;
   updatedAt?: string;
+  created_at?: string; // Add this field based on your API response
+  updated_at?: string; // Add this field based on your API response
 }
 
 export default function PagesPage() {
@@ -72,35 +75,28 @@ export default function PagesPage() {
   }, [token]);
 
   const getEditHref = (page: Page) => {
-    const rawType = String(
-      page.type || (page as any)?.form_type || ""
+    // Check multiple possible field names for the page type
+    const rawType = (
+      page.page_type ||  // This is the correct field from your API
+      page.type ||
+      (page as any)?.form_type ||
+      "custom"
     ).toLowerCase();
-    const slug = String(page.slug || "").toLowerCase();
-    const titleName = `${(page.title || "").toLowerCase()} ${(
-      page.name || ""
-    ).toLowerCase()}`;
-
-    const isLogin =
-      rawType === "login" ||
-      slug === "login" ||
-      /\blog(in)?\b|sign\s*in/.test(titleName);
-
-    const isRegistration =
-      rawType === "registration" ||
-      rawType === "register" ||
-      slug === "register" ||
-      slug === "registration" ||
-      /register|sign\s*up|registration/.test(titleName);
-
-    const isContact =
-      rawType === "contact" ||
-      slug === "contact" ||
-      /contact|support|feedback/.test(titleName);
-
-    if (isLogin) return `/page-builder/login?id=${page.id}`;
-    if (isRegistration) return `/page-builder/registration?id=${page.id}`;
-    if (isContact) return `/page-builder/contact?id=${page.id}`;
-    return `/page-builder/custom?id=${page.id}`;
+    
+    console.log("Page type for page", page.id, ":", rawType); // Debug log
+    
+    switch (rawType) {
+      case "login":
+        return `/page-builder/login?id=${page.id}`;
+      case "contact":
+        return `/page-builder/contact?id=${page.id}`;
+      case "register":
+      case "registration":
+        return `/page-builder/registration?id=${page.id}`;
+      case "custom":
+      default:
+        return `/page-builder/custom?id=${page.id}`;
+    }
   };
 
   const handleDelete = async (pageId: string) => {
@@ -118,7 +114,9 @@ export default function PagesPage() {
   };
 
   const getPageTypeColor = (type: string) => {
-    switch (type) {
+    const normalizedType = type.toLowerCase();
+    switch (normalizedType) {
+      case "register":
       case "registration":
         return "bg-blue-100 text-blue-800";
       case "login":
@@ -131,6 +129,21 @@ export default function PagesPage() {
         return "bg-gray-100 text-gray-800";
       default:
         return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getDisplayType = (page: Page) => {
+    return page.page_type || page.type || "custom";
+  };
+
+  const getLastUpdated = (page: Page) => {
+    const dateStr = page.updated_at || page.updatedAt;
+    if (!dateStr) return "Never";
+    
+    try {
+      return new Date(dateStr).toLocaleDateString();
+    } catch {
+      return "Invalid Date";
     }
   };
 
@@ -244,9 +257,9 @@ export default function PagesPage() {
                       </TableCell>
                       <TableCell>
                         <Badge
-                          className={getPageTypeColor(page.type || "custom")}
+                          className={getPageTypeColor(getDisplayType(page))}
                         >
-                          {page.type || "custom"}
+                          {getDisplayType(page)}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -256,9 +269,7 @@ export default function PagesPage() {
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-gray-600">
-                          {page.updatedAt
-                            ? new Date(page.updatedAt).toLocaleDateString()
-                            : "Never"}
+                          {getLastUpdated(page)}
                         </span>
                       </TableCell>
                       <TableCell>
