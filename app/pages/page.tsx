@@ -93,6 +93,8 @@ export default function PagesPage() {
       case "register":
       case "registration":
         return `/page-builder/registration?id=${page.id}`;
+        case "contact_us":
+        return `/page-builder/contact?id=${page.id}`;
       case "custom":
       default:
         return `/page-builder/custom?id=${page.id}`;

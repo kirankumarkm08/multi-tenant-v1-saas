@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-config";
 import { useSearchParams } from "next/navigation";
-// import { useAuth } from "@/context/AuthContext";
 
 export default function ClientRegistrationPage() {
   const [formConfig, setFormConfig] = useState<any>(null);
@@ -19,53 +18,46 @@ export default function ClientRegistrationPage() {
       if (!tenant) return;
       setLoading(true);
       setError(null);
+
       try {
         let res: any = null;
+
+        // ✅ Fetch only register type pages
         try {
-          res = await apiFetch(
-            `/tenant/pages?page_type=register&tenant=${tenant}`
-          );
-        } catch (_e) {}
-        
-        if (
-          !res ||
-          (Array.isArray(res) && res.length === 0) ||
-          (res?.data && Array.isArray(res.data) && res.data.length === 0)
-        ) {
-          try {
-            res = await apiFetch(
-              `/tenant/pages?type=register&tenant=${tenant}`
-            );
-          } catch (_e2) {}
+          res = await apiFetch(`/customer/pages/type/register`);
+        } catch (_e) {
+          // fallback for tenant-specific
+          // try {
+          //   res = await apiFetch(`/tenant/pages?type=register&tenant=${tenant}`);
+          // } catch (_e2) {}
         }
-        
-        setRaw(res);
-        
-        // Normalize possible shapes: {data: [...]}, [...], or single object
-        const maybeArray = Array.isArray(res)
-          ? res
-          : Array.isArray(res?.data)
+
+        setRaw(res?.data);
+
+        // Normalize into array
+        const maybeArray = Array.isArray(res?.data)
           ? res.data
           : res?.data
           ? [res.data]
-          : [res];
+          : [];
 
-        if (!maybeArray || maybeArray.length === 0) {
+        if (maybeArray.length === 0) {
           setFormConfig(null);
+          setLoading(false);
           return;
         }
 
-        // Sort by created_at timestamp in descending order to get the latest
+        // ✅ Sort by created_at/updated_at
         const sortedArray = maybeArray
-          .filter((item:any) => item && item.form_config) // Filter out invalid items
-          .sort(({a, b}:{a:any, b:any}) => {
+          .filter((item: any) => item && item.form_config)
+          .sort((a: any, b: any) => {
             const dateA = new Date(a.created_at || a.updated_at || 0);
             const dateB = new Date(b.created_at || b.updated_at || 0);
-            return dateB.getTime() - dateA.getTime(); // Descending order (latest first)
+            return dateB.getTime() - dateA.getTime();
           });
 
         const latest = sortedArray.length > 0 ? sortedArray[0] : null;
-        
+
         if (!latest) {
           setFormConfig(null);
         } else {
@@ -79,7 +71,7 @@ export default function ClientRegistrationPage() {
                   }
                 })()
               : latest.form_config;
-          
+
           setFormConfig({ ...latest, form_config: parsedFormConfig });
         }
       } catch (e) {
@@ -87,15 +79,29 @@ export default function ClientRegistrationPage() {
         setError("Failed to load registration form");
         setFormConfig(null);
       }
+
       setLoading(false);
     }
+
     fetchConfig();
   }, [tenant]);
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
-  if (error) return <div className="text-red-500 text-center p-4">Error: {error}</div>;
-  if (!formConfig || !formConfig.form_config) {
-    return <div className="text-center p-4">No registration form found.</div>;
+  if (loading)
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        Loading...
+      </div>
+    );
+
+  if (error)
+    return (
+      <div className="text-red-500 text-center p-4">Error: {error}</div>
+    );
+
+  if (!formConfig || !Array.isArray(formConfig.form_config)) {
+    return (
+      <div className="text-center p-4">No registration form found.</div>
+    );
   }
 
   const handleChange = (name: string, value: any) => {
@@ -106,7 +112,6 @@ export default function ClientRegistrationPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      // Add your submission logic here
       console.log("Submitted:", formData);
       console.log("Form ID:", formConfig.id);
       alert("Registration submitted successfully!");
@@ -117,33 +122,34 @@ export default function ClientRegistrationPage() {
     setSubmitting(false);
   };
 
-  // Ensure form_config is an array before processing
-  const formFields = Array.isArray(formConfig.form_config) 
-    ? formConfig.form_config 
+  // fields
+  const formFields: any[] = Array.isArray(formConfig.form_config)
+    ? formConfig.form_config
     : [];
 
   return (
     <div className="max-w-2xl mx-auto p-6">
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-lg p-8">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white rounded-lg shadow-lg p-8"
+      >
         <div className="mb-6">
           <h2 className="text-3xl font-bold text-gray-800 mb-2">
             {formConfig.title || "Register"}
           </h2>
-          {/* Show which form is being displayed */}
           <p className="text-sm text-gray-500">
-            Form ID: {formConfig.id} | Created: {new Date(formConfig.created_at).toLocaleDateString()}
+            Form ID: {formConfig.id} | Created:{" "}
+            {new Date(formConfig.created_at).toLocaleDateString()}
           </p>
         </div>
-        
+
         {formFields.length > 0 ? (
           <div className="space-y-6">
             {formFields
               .slice()
               .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
               .map((field: any) => {
-                if (!field.name || !field.type) {
-                  return null; // Skip invalid fields
-                }
+                if (!field.name || !field.type) return null;
 
                 const commonLabel = (
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -162,7 +168,9 @@ export default function ClientRegistrationPage() {
                         required={field.required}
                         placeholder={field.placeholder}
                         value={formData[field.name] || ""}
-                        onChange={(e) => handleChange(field.name, e.target.value)}
+                        onChange={(e) =>
+                          handleChange(field.name, e.target.value)
+                        }
                         className="w-full border border-gray-300 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         rows={4}
                       />
@@ -171,14 +179,18 @@ export default function ClientRegistrationPage() {
                 }
 
                 if (field.type === "select") {
-                  const options = Array.isArray(field.options) ? field.options : [];
+                  const options = Array.isArray(field.options)
+                    ? field.options
+                    : [];
                   return (
                     <div key={field.id || field.name} className="mb-6">
                       {commonLabel}
                       <select
                         required={field.required}
                         value={formData[field.name] || ""}
-                        onChange={(e) => handleChange(field.name, e.target.value)}
+                        onChange={(e) =>
+                          handleChange(field.name, e.target.value)
+                        }
                         className="w-full border border-gray-300 px-4 py-3 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
                         <option value="" disabled>
@@ -202,7 +214,9 @@ export default function ClientRegistrationPage() {
                         <input
                           type="checkbox"
                           checked={checked}
-                          onChange={(e) => handleChange(field.name, e.target.checked)}
+                          onChange={(e) =>
+                            handleChange(field.name, e.target.checked)
+                          }
                           className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         />
                         <span className="text-sm font-medium text-gray-700">
@@ -217,23 +231,32 @@ export default function ClientRegistrationPage() {
                 }
 
                 if (field.type === "radio") {
-                  const options = Array.isArray(field.options) ? field.options : [];
+                  const options = Array.isArray(field.options)
+                    ? field.options
+                    : [];
                   const value = formData[field.name] || "";
                   return (
                     <div key={field.id || field.name} className="mb-6">
                       {commonLabel}
                       <div className="space-y-3">
                         {options.map((opt: string, idx: number) => (
-                          <label key={idx} className="flex items-center space-x-3 cursor-pointer">
+                          <label
+                            key={idx}
+                            className="flex items-center space-x-3 cursor-pointer"
+                          >
                             <input
                               type="radio"
                               name={field.name}
                               value={opt}
                               checked={value === opt}
-                              onChange={(e) => handleChange(field.name, e.target.value)}
+                              onChange={(e) =>
+                                handleChange(field.name, e.target.value)
+                              }
                               className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300"
                             />
-                            <span className="text-sm text-gray-700">{opt}</span>
+                            <span className="text-sm text-gray-700">
+                              {opt}
+                            </span>
                           </label>
                         ))}
                       </div>
@@ -241,11 +264,19 @@ export default function ClientRegistrationPage() {
                   );
                 }
 
-                // Default input-based fields
+                // Default input types
                 const inputType = [
-                  "text", "email", "tel", "number", "password", "url", "date",
-                ].includes(field.type) ? field.type : "text";
-                
+                  "text",
+                  "email",
+                  "tel",
+                  "number",
+                  "password",
+                  "url",
+                  "date",
+                ].includes(field.type)
+                  ? field.type
+                  : "text";
+
                 return (
                   <div key={field.id || field.name} className="mb-6">
                     {commonLabel}
@@ -254,17 +285,19 @@ export default function ClientRegistrationPage() {
                       required={field.required}
                       placeholder={field.placeholder}
                       value={formData[field.name] || ""}
-                      onChange={(e) => handleChange(field.name, e.target.value)}
+                      onChange={(e) =>
+                        handleChange(field.name, e.target.value)
+                      }
                       className="w-full border border-gray-300 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
                 );
-              })
-              .filter(Boolean) // Remove null entries
-            }
+              })}
           </div>
         ) : (
-          <div className="text-gray-500 text-center py-8">No fields configured.</div>
+          <div className="text-gray-500 text-center py-8">
+            No fields configured.
+          </div>
         )}
 
         <button
@@ -272,36 +305,11 @@ export default function ClientRegistrationPage() {
           disabled={submitting}
           className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200"
         >
-          {submitting 
-            ? "Submitting..." 
-            : (formConfig.settings?.submitButtonText || "Register")
-          }
+          {submitting
+            ? "Submitting..."
+            : formConfig.settings?.submitButtonText || "Register"}
         </button>
       </form>
-      
-      {/* Debug section - remove in production */}
-      {/* {process.env.NODE_ENV === "development" && (
-        <details className="mt-6 bg-gray-50 rounded-lg p-4">
-          <summary className="cursor-pointer text-sm text-gray-600 font-medium">
-            Debug Info (Development Only)
-          </summary>
-          <div className="mt-4 space-y-4">
-            <div>
-              <h4 className="font-medium text-gray-700">Available Forms ({raw?.data?.length || 0}):</h4>
-              <div className="text-xs text-gray-600 mt-1">
-                {raw?.data?.map((item: any, idx: number) => (
-                  <div key={idx} className="mb-1">
-                    ID: {item.id}, Title: {item.title}, Created: {new Date(item.created_at).toLocaleDateString()}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <pre className="text-xs bg-white p-3 rounded border overflow-auto max-h-64">
-              {JSON.stringify({ formConfig, formData }, null, 2)}
-            </pre>
-          </div>
-        </details>
-      )} */}
     </div>
   );
 }

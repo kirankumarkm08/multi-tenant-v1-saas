@@ -1,239 +1,231 @@
 "use client";
-
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Mail } from "lucide-react";
 import { apiFetch } from "@/lib/api-config";
+import { useSearchParams } from "next/navigation";
 
-interface FormField {
-  id: string;
-  name: string;
-  label: string;
-  type: string;
-  required: boolean;
-  placeholder?: string;
-  order: number;
-}
-
-interface ContactSettings {
-  nameLabel: string;
-  emailLabel: string;
-  phoneEnabled: boolean;
-  phoneLabel: string;
-  messageLabel: string;
-  submitButtonText: string;
-}
-
-interface ContactPageConfig {
-  id: string;
-  title: string;
-  description?: string;
-  form_config: FormField[];
-  settings: ContactSettings;
-}
-
-export default function ContactPage() {
-  const [formDef, setFormDef] = useState<ContactPageConfig | null>(null);
+export default function ClientContactPage() {
+  const [formConfig, setFormConfig] = useState<any>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const tenant = searchParams.get("tenant") || "default";
 
   useEffect(() => {
-    const load = async () => {
+    async function fetchConfig() {
+      if (!tenant) return;
       setLoading(true);
       setError(null);
+
       try {
         let res: any = null;
-        try {
-          res = await apiFetch("/tenant/pages?page_type=contact");
-        } catch (_e) {}
-        if (
-          !res ||
-          (Array.isArray(res) && res.length === 0) ||
-          (res?.data && Array.isArray(res.data) && res.data.length === 0)
-        ) {
-          try {
-            res = await apiFetch("/tenant/pages?type=contact");
-          } catch (_e2) {}
-        }
-        if (
-          !res ||
-          (Array.isArray(res) && res.length === 0) ||
-          (res?.data && Array.isArray(res.data) && res.data.length === 0)
-        ) {
-          try {
-            res = await apiFetch("/tenant/pages?form_type=contact");
-          } catch (_e3) {}
-        }
-        let first: any = null;
-        if (Array.isArray(res)) first = res[0];
-        else if (Array.isArray(res?.data)) first = res.data[0];
-        else first = res;
 
-        if (!first) {
-          setFormDef(null);
-        } else {
-          const parsedConfig =
-            typeof first.form_config === "string"
-              ? JSON.parse(first.form_config)
-              : first.form_config;
-          const parsedSettings =
-            typeof first.settings === "string"
-              ? JSON.parse(first.settings)
-              : first.settings;
-          setFormDef({
-            ...first,
-            form_config: parsedConfig || [],
-            settings: parsedSettings,
-          });
+        // ✅ Fetch only contact_us type pages
+        try {
+          res = await apiFetch(`/customer/pages/type/contact_us`);
+        } catch (_e) {
+          // fallback for tenant-specific
+          // try {
+          //   res = await apiFetch(`/tenant/pages?type=contact_us&tenant=${tenant}`);
+          // } catch (_e2) {}
         }
-      } catch (e: any) {
-        setError("Failed to load contact form.");
-      } finally {
-        setLoading(false);
+
+        // Normalize
+        const maybeArray = Array.isArray(res?.data)
+          ? res.data
+          : res?.data
+          ? [res.data]
+          : [];
+
+        if (maybeArray.length === 0) {
+          setFormConfig(null);
+          setLoading(false);
+          return;
+        }
+
+        // ✅ Sort latest
+        const sortedArray = maybeArray
+          .filter((item: any) => item && item.form_config)
+          .sort((a: any, b: any) => {
+            const dateA = new Date(a.created_at || a.updated_at || 0);
+            const dateB = new Date(b.created_at || b.updated_at || 0);
+            return dateB.getTime() - dateA.getTime();
+          });
+
+        const latest = sortedArray[0] || null;
+        if (!latest) {
+          setFormConfig(null);
+        } else {
+          const parsedFormConfig =
+            typeof latest.form_config === "string"
+              ? (() => {
+                  try {
+                    return JSON.parse(latest.form_config);
+                  } catch {
+                    return null;
+                  }
+                })()
+              : latest.form_config;
+
+          setFormConfig({ ...latest, form_config: parsedFormConfig });
+        }
+      } catch (e) {
+        console.error("Error fetching form config:", e);
+        setError("Failed to load contact form");
+        setFormConfig(null);
       }
-    };
-    load();
-  }, []);
+
+      setLoading(false);
+    }
+
+    fetchConfig();
+  }, [tenant]);
+
+  if (loading)
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        Loading...
+      </div>
+    );
+
+  if (error)
+    return (
+      <div className="text-red-500 text-center p-4">Error: {error}</div>
+    );
+
+  if (!formConfig || !Array.isArray(formConfig.form_config)) {
+    return <div className="text-center p-4">No contact form found.</div>;
+  }
 
   const handleChange = (name: string, value: any) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
-    setError(null);
-    setSuccess(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formDef) return;
     setSubmitting(true);
     setError(null);
-    setSuccess(null);
     try {
-      // Prepare payload from configured fields
-      const payload: Record<string, any> = {};
-      (formDef.form_config || []).forEach((f) => {
-        if (formData[f.name] !== undefined) payload[f.name] = formData[f.name];
-      });
-
-      // Submit to contact endpoint (adjust if your API differs)
+      // ✅ Send to contact API
       await apiFetch("/tenant/contact", {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: JSON.stringify(formData),
       });
 
-      setSuccess("Your message has been sent successfully.");
+      alert(formConfig.settings?.successMessage || "Message sent successfully!");
       setFormData({});
-    } catch (err: any) {
-      setError(
-        err?.data?.message || err?.message || "Failed to submit message."
-      );
-    } finally {
-      setSubmitting(false);
+    } catch (error) {
+      console.error("Submission error:", error);
+      setError("Failed to send your message. Please try again.");
     }
+    setSubmitting(false);
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-      </div>
-    );
-  }
-
-  if (!formDef) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-gray-600">
-        No contact form configured.
-      </div>
-    );
-  }
+  // fields
+  const formFields: any[] = Array.isArray(formConfig.form_config)
+    ? formConfig.form_config
+    : [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="flex items-center justify-center">
-              <Mail className="mr-2 h-5 w-5 text-blue-600" />
-              {formDef.title || "Contact Us"}
-            </CardTitle>
-            {formDef.description && (
-              <p className="text-sm text-gray-600 mt-2">
-                {formDef.description}
-              </p>
-            )}
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {error && (
-                <div className="bg-red-50 border border-red-200 rounded-md p-3 text-sm text-red-700">
-                  {error}
-                </div>
-              )}
-              {success && (
-                <div className="bg-green-50 border border-green-200 rounded-md p-3 text-sm text-green-700">
-                  {success}
-                </div>
-              )}
+    <div className="max-w-2xl mx-auto p-6">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white rounded-lg shadow-lg p-8"
+      >
+        <div className="mb-6">
+          <h2 className="text-3xl font-bold text-gray-800 mb-2">
+            {formConfig.title || "Contact Us"}
+          </h2>
+          {formConfig.description && (
+            <p className="text-sm text-gray-500">{formConfig.description}</p>
+          )}
+        </div>
 
-              {(formDef.form_config || [])
-                .slice()
-                .sort((a, b) => a.order - b.order)
-                .map((field) => (
-                  <div key={field.id}>
-                    <Label htmlFor={field.name}>
-                      {field.label}
-                      {field.required && (
-                        <span className="text-red-500 ml-1">*</span>
-                      )}
-                    </Label>
-                    {field.type === "textarea" ? (
-                      <Textarea
-                        id={field.name}
-                        required={field.required}
-                        placeholder={field.placeholder}
-                        value={formData[field.name] || ""}
-                        onChange={(e) =>
-                          handleChange(field.name, e.target.value)
-                        }
-                        className="mt-1"
-                      />
-                    ) : (
-                      <Input
-                        id={field.name}
-                        type={field.type}
-                        required={field.required}
-                        placeholder={field.placeholder}
-                        value={formData[field.name] || ""}
-                        onChange={(e) =>
-                          handleChange(field.name, e.target.value)
-                        }
-                        className="mt-1"
-                      />
+        {formFields.length > 0 ? (
+          <div className="space-y-6">
+            {formFields
+              .slice()
+              .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
+              .map((field: any) => {
+                if (!field.name || !field.type) return null;
+
+                const commonLabel = (
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {field.label}
+                    {field.required && (
+                      <span className="text-red-500 ml-1">*</span>
                     )}
-                  </div>
-                ))}
+                  </label>
+                );
 
-              <Button type="submit" className="w-full" disabled={submitting}>
-                {submitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  formDef.settings?.submitButtonText || "Send Message"
-                )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </main>
+                if (field.type === "textarea") {
+                  return (
+                    <div key={field.id || field.name} className="mb-6">
+                      {commonLabel}
+                      <textarea
+                        required={field.required}
+                        placeholder={field.placeholder}
+                        value={formData[field.name] || ""}
+                        onChange={(e) =>
+                          handleChange(field.name, e.target.value)
+                        }
+                        className="w-full border border-gray-300 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows={4}
+                      />
+                    </div>
+                  );
+                }
+
+                // default input types
+                const inputType = [
+                  "text",
+                  "email",
+                  "tel",
+                  "number",
+                  "url",
+                  "date",
+                ].includes(field.type)
+                  ? field.type
+                  : "text";
+
+                return (
+                  <div key={field.id || field.name} className="mb-6">
+                    {commonLabel}
+                    <input
+                      type={inputType}
+                      required={field.required}
+                      placeholder={field.placeholder}
+                      value={formData[field.name] || ""}
+                      onChange={(e) =>
+                        handleChange(field.name, e.target.value)
+                      }
+                      className="w-full border border-gray-300 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                );
+              })}
+          </div>
+        ) : (
+          <div className="text-gray-500 text-center py-8">
+            No fields configured.
+          </div>
+        )}
+
+        {error && (
+          <div className="text-red-500 text-sm text-center mb-4">{error}</div>
+        )}
+
+        <button
+          type="submit"
+          disabled={submitting}
+          className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200"
+        >
+          {submitting
+            ? "Sending..."
+            : formConfig.settings?.submitButtonText || "Send Message"}
+        </button>
+      </form>
     </div>
   );
 }

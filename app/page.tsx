@@ -49,8 +49,8 @@ export default function LandingPage() {
       href: "/",
     },
     {
-      label: "About",
-      href: "/about",
+      label: "Contact us",
+      href: "/contact",
     },
     {
       label: "Login",
