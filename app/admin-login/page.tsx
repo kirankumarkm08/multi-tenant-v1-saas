@@ -89,7 +89,7 @@ export default function LoginPage() {
         storedToken ? "Present" : "Missing"
       );
 
-      router.push("/admin/dashboard");
+      router.push("/admin");
     } catch (err: any) {
       console.error("Login - Error:", err);
       setError(err.message || "Login failed. Please try again.");

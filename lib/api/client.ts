@@ -1,84 +1,88 @@
-import { API_CONFIG } from './config';
-import { ApiError } from '@/types/api';
+// lib/api/client.ts
+import axios, { AxiosInstance, AxiosError, AxiosResponse } from 'axios';
 
-export class ApiClient {
-  private getAuthToken(): string | null {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("access_token");
-    }
-    return null;
-  }
+const BASE_URL = 'https://165.227.182.17/api';
 
-  private async handleResponse<T>(response: Response): Promise<T> {
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const error = new Error(errorData.message || response.statusText) as ApiError;
-      error.status = response.status;
-      error.data = errorData;
-      throw error;
-    }
+class ApiClient {
+  private instance: AxiosInstance;
 
-    const contentType = response.headers.get("content-type");
-    if (contentType?.includes("application/json")) {
-      return response.json();
-    }
-    return response.text() as any;
-  }
-
-  async request<T = any>(
-    endpoint: string,
-    options: RequestInit & { token?: string; skipAuth?: boolean } = {}
-  ): Promise<T> {
-    const url = `${API_CONFIG.BASE_URL}${
-      endpoint.startsWith("/") ? endpoint : `/${endpoint}`
-    }`;
-
-    const token = options.token || (!options.skipAuth ? this.getAuthToken() : null);
-    
-    const defaultHeaders: HeadersInit = {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
-
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers: { ...defaultHeaders, ...(options.headers || {}) },
-        signal: controller.signal,
-      });
-
-      return await this.handleResponse<T>(response);
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  }
-
-  async get<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    return this.request<T>(endpoint, { ...options, method: "GET" });
-  }
-
-  async post<T>(endpoint: string, data?: any, options?: RequestInit): Promise<T> {
-    return this.request<T>(endpoint, {
-      ...options,
-      method: "POST",
-      body: data ? JSON.stringify(data) : undefined,
+  constructor() {
+    this.instance = axios.create({
+      baseURL: BASE_URL,
+      timeout: 10000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
+
+    this.setupInterceptors();
   }
 
-  async put<T>(endpoint: string, data?: any, options?: RequestInit): Promise<T> {
-    return this.request<T>(endpoint, {
-      ...options,
-      method: "PUT",
-      body: data ? JSON.stringify(data) : undefined,
-    });
+  private setupInterceptors(): void {
+    // Request interceptor
+    this.instance.interceptors.request.use(
+      (config:any) => {
+        // Add auth token if available
+        if (typeof window !== 'undefined') {
+          const token = localStorage.getItem('authToken');
+          const tenantId = localStorage.getItem('tenantId');
+          
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
+          
+          if (tenantId) {
+            config.headers['X-Tenant-ID'] = tenantId;
+          }
+        }
+        
+        return config;
+      },
+      (error) => {
+        return Promise.reject(error);
+      }
+    );
+
+    // Response interceptor
+    this.instance.interceptors.response.use(
+      (response: AxiosResponse) => response,
+      async (error: AxiosError) => {
+        const originalRequest = error.config;
+
+        // Handle 401 unauthorized
+        if (error.response?.status === 401) {
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('user');
+            window.location.href = '/admin-login';
+          }
+        }
+
+        // Handle network errors
+        if (!error.response) {
+          console.error('Network Error:', error.message);
+        }
+
+        return Promise.reject(error);
+      }
+    );
   }
 
-  async delete<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    return this.request<T>(endpoint, { ...options, method: "DELETE" });
+  // HTTP methods
+  async get<T>(url: string, params?: any): Promise<AxiosResponse<T>> {
+    return this.instance.get<T>(url, { params });
+  }
+
+  async post<T>(url: string, data?: any): Promise<AxiosResponse<T>> {
+    return this.instance.post<T>(url, data);
+  }
+
+  async put<T>(url: string, data?: any): Promise<AxiosResponse<T>> {
+    return this.instance.put<T>(url, data);
+  }
+
+  async delete<T>(url: string): Promise<AxiosResponse<T>> {
+    return this.instance.delete<T>(url);
   }
 }
 
