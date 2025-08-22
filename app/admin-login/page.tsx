@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
-import { apiFetch } from "@/lib/api-config";
+import { tenantApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
@@ -19,12 +19,10 @@ export default function LoginPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // If already authenticated, go straight to dashboard
+    // If already authenticated, redirect to /admin
     const storedToken =
-      typeof window !== "undefined"
-        ? localStorage.getItem("access_token")
-        : null;
-    // Show reason for redirect, if any
+      typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+
     if (typeof window !== "undefined") {
       const reason = localStorage.getItem("auth_redirect_reason");
       if (reason) {
@@ -35,10 +33,11 @@ export default function LoginPage() {
         localStorage.removeItem("auth_redirect_reason");
       }
     }
+
     if (storedToken) {
-      router.replace("/admin/dashboard");
+      router.replace("/admin");
     }
-  }, [router]);
+  }, [router, toast]);
 
   const validate = () => {
     let valid = true;
@@ -66,32 +65,20 @@ export default function LoginPage() {
     setError("");
 
     try {
-      console.log("Login - Attempting login with email:", email);
-      const response = await apiFetch("/tenant/login", {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-      });
+      const response = await tenantApi.login({ email, password });
 
-      console.log("Login - Response received:", response);
+      // Adjust token extraction based on your API response shape
+      const token = response.access_token ?? response.data?.access_token;
 
-      if (!response?.data?.access_token) {
-        throw new Error(response?.message || "Invalid email or password");
+      if (!token) {
+        throw new Error(response.message || "Invalid email or password");
       }
 
-      const token = response.data.access_token;
-      console.log("Login - Token extracted:", token ? "Present" : "Missing");
+      // Save token in context and localStorage via setToken
       setToken(token);
-
-      // Verify token was stored
-      const storedToken = localStorage.getItem("access_token");
-      console.log(
-        "Login - Token stored in localStorage:",
-        storedToken ? "Present" : "Missing"
-      );
 
       router.push("/admin");
     } catch (err: any) {
-      console.error("Login - Error:", err);
       setError(err.message || "Login failed. Please try again.");
     } finally {
       setLoading(false);
@@ -101,7 +88,7 @@ export default function LoginPage() {
   return (
     <div className="max-w-md mx-auto mt-20 p-6 border rounded-xl shadow-lg">
       <h2 className="text-2xl font-semibold mb-4 text-center">Tenant Login</h2>
-      <form onSubmit={handleLogin} className="space-y-4">
+      <form onSubmit={handleLogin} className="space-y-4" noValidate>
         <div>
           <input
             type="email"
@@ -109,9 +96,13 @@ export default function LoginPage() {
             className="w-full px-4 py-2 border rounded"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+            required
           />
           {emailError && (
-            <p className="text-red-500 text-sm mt-1">{emailError}</p>
+            <p className="text-red-500 text-sm mt-1" role="alert">
+              {emailError}
+            </p>
           )}
         </div>
 
@@ -122,22 +113,28 @@ export default function LoginPage() {
             className="w-full px-4 py-2 border rounded"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            required
           />
           {passwordError && (
-            <p className="text-red-500 text-sm mt-1">{passwordError}</p>
+            <p className="text-red-500 text-sm mt-1" role="alert">
+              {passwordError}
+            </p>
           )}
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
+          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition disabled:opacity-50"
         >
           {loading ? "Logging in..." : "Login"}
         </button>
 
         {error && (
-          <p className="text-red-600 text-sm mt-2 text-center">{error}</p>
+          <p className="text-red-600 text-sm mt-2 text-center" role="alert">
+            {error}
+          </p>
         )}
       </form>
     </div>

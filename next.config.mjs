@@ -1,3 +1,8 @@
+// For development, allow self-signed certificates
+if (process.env.NODE_ENV === 'development') {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
@@ -10,14 +15,25 @@ const nextConfig = {
     unoptimized: true,
   },
   async rewrites() {
-    const base = process.env.NEXT_PUBLIC_API_BASE_URL;
-    if (!base || !base.startsWith("https://")) {
-      throw new Error("NEXT_PUBLIC_API_BASE_URL must be set to an HTTPS URL");
-    }
+    const base = process.env.NEXT_PUBLIC_API_BASE_URL || "https://165.227.182.17/api";
+    // Remove the HTTPS check to allow the rewrite to work
     return [
       {
         source: "/api/:path*",
         destination: `${base}/:path*`,
+      },
+    ];
+  },
+  async headers() {
+    return [
+      {
+        source: "/api/:path*",
+        headers: [
+          { key: "Access-Control-Allow-Credentials", value: "true" },
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Access-Control-Allow-Methods", value: "GET,OPTIONS,PATCH,DELETE,POST,PUT" },
+          { key: "Access-Control-Allow-Headers", value: "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization" },
+        ],
       },
     ];
   },

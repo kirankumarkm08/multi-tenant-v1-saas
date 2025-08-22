@@ -27,6 +27,7 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api-config";
+import { tenantApi } from "@/lib/api";
 import { PagesStats } from "@/components/admin/dashboard/PageStats";
 import { QuickActions } from "@/components/admin/dashboard/QuickActions";
 
@@ -35,6 +36,13 @@ type Dict = Record<string, any>;
 
 interface DashboardStats {
   [key: string]: number | string;
+}
+
+interface TenantDashboardData {
+  stats?: DashboardStats;
+  recentActivity?: any[];
+  analytics?: any;
+  [key: string]: any;
 }
 
 /* ------------------------ Utilities ------------------------ */
@@ -228,6 +236,7 @@ export default function Dashboard() {
   });
 
   const [pages, setPages] = useState<Dict[]>([]);
+  const [dashboardData, setDashboardData] = useState<TenantDashboardData | null>(null);
 
   // Redirect if not logged in
   useEffect(() => {
@@ -261,23 +270,34 @@ export default function Dashboard() {
     }
   }, []);
 
-  // Fetch pages (and possibly API-driven stats) dynamically
+  // Fetch dashboard data and pages
   useEffect(() => {
     if (!token) return;
 
     (async () => {
       setLoading(true);
       setError(null);
+      
       try {
-        const res = await apiFetch("/tenant/pages", {
+        // Fetch dashboard data from /tenant/dashboard
+        const dashboardRes = await tenantApi.getDashboard(token);
+        setDashboardData(dashboardRes);
+
+        // Extract and set stats from dashboard response
+        if (dashboardRes?.stats) {
+          setStats((s) => ({ ...s, ...dashboardRes.stats }));
+        }
+
+        // Also fetch pages for the data grid
+        const pagesRes = await apiFetch("/tenant/pages", {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        const arr = extractArray(res);
+        const arr = extractArray(pagesRes);
         setPages(Array.isArray(arr) ? arr : []);
 
-        // If API returns count/sums, merge them into dynamic stats
-        const maybeStats: Dict = res?.stats || res?.meta || {};
+        // If pages API returns count/sums, merge them into dynamic stats
+        const maybeStats: Dict = pagesRes?.stats || pagesRes?.meta || {};
         const numericStats = Object.fromEntries(
           Object.entries(maybeStats).filter(
             ([, v]) => typeof v === "number" || (typeof v === "string" && v.trim() !== "")
@@ -294,9 +314,10 @@ export default function Dashboard() {
           }));
         }
       } catch (err: any) {
-        console.error("Failed to fetch pages:", err);
-        setError(err?.message || "Failed to fetch pages");
+        console.error("Failed to fetch dashboard data:", err);
+        setError(err?.message || "Failed to fetch dashboard data");
         setPages([]);
+        setDashboardData(null);
       } finally {
         setLoading(false);
       }
@@ -330,7 +351,7 @@ export default function Dashboard() {
             {/* Loading / Error */}
             {loading && (
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                Loading pages…
+                Loading dashboard data…
               </p>
             )}
             {error && (
@@ -345,15 +366,85 @@ export default function Dashboard() {
             {/* Quick Actions */}
             <QuickActions />
 
-            {/* Popular Pages → fully dynamic field alignment */}
+            {/* Dashboard Data Grid */}
             <div className="grid gap-6 [grid-template-columns:repeat(auto-fit,minmax(320px,1fr))]">
+              {/* Tenant Dashboard Data */}
+              {dashboardData && Object.keys(dashboardData).length > 0 && (
+                <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                  <CardHeader className="border-b border-gray-200 dark:border-gray-700">
+                    <CardTitle className="text-gray-900 dark:text-white">
+                      Tenant Dashboard
+                    </CardTitle>
+                    <CardDescription className="text-gray-600 dark:text-gray-300">
+                      Data from /tenant/dashboard API
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    {dashboardData.recentActivity && Array.isArray(dashboardData.recentActivity) && (
+                      <div className="mb-6">
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                          Recent Activity
+                        </h3>
+                        <DataGrid
+                          items={dashboardData.recentActivity}
+                          preferred={["activity", "timestamp", "user", "type", "status"]}
+                          maxCols={4}
+                        />
+                      </div>
+                    )}
+                    
+                    {dashboardData.analytics && (
+                      <div className="mb-6">
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                          Analytics Data
+                        </h3>
+                        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                          <pre className="text-xs text-gray-700 dark:text-gray-300 overflow-auto">
+                            {JSON.stringify(dashboardData.analytics, null, 2)}
+                          </pre>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Display any other data from dashboard API */}
+                    {Object.entries(dashboardData)
+                      .filter(([key]) => !['stats', 'recentActivity', 'analytics'].includes(key))
+                      .map(([key, value]) => (
+                        <div key={key} className="mb-4">
+                          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2 capitalize">
+                            {key.replace(/([A-Z])/g, ' $1').trim()}
+                          </h3>
+                          {Array.isArray(value) ? (
+                            <DataGrid
+                              items={value}
+                              preferred={["name", "title", "status", "date", "count"]}
+                              maxCols={4}
+                            />
+                          ) : typeof value === 'object' && value !== null ? (
+                            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                              <pre className="text-xs text-gray-700 dark:text-gray-300 overflow-auto">
+                                {JSON.stringify(value, null, 2)}
+                              </pre>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-600 dark:text-gray-300">
+                              {String(value)}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Popular Pages */}
               <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                 <CardHeader className="border-b border-gray-200 dark:border-gray-700">
                   <CardTitle className="text-gray-900 dark:text-white">
                     Popular Pages
                   </CardTitle>
                   <CardDescription className="text-gray-600 dark:text-gray-300">
-                    Auto-inferred fields from API
+                    Auto-inferred fields from pages API
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-6">

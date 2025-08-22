@@ -9,6 +9,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Save,
   Eye,
   ArrowLeft,
@@ -51,6 +58,7 @@ interface CustomPage {
   slug: string;
   title: string;
   description: string;
+  status: "draft" | "published" | "archived";
   modules: PageModule[];
   settings: {
     headerStyle: "default" | "minimal" | "centered";
@@ -157,6 +165,7 @@ export default function CustomPageBuilder() {
     slug: "custom-page",
     title: "Custom Page",
     description: "A custom page built with drag and drop",
+    status: "draft",
     modules: [],
     settings: {
       headerStyle: "default",
@@ -201,6 +210,7 @@ export default function CustomPageBuilder() {
           data.description ||
           settings.description ||
           "A custom page built with drag and drop",
+        status: data.status || "draft",
         modules: Array.isArray(modules) ? modules : [],
         settings: {
           headerStyle: settings.headerStyle || "default",
@@ -262,6 +272,7 @@ export default function CustomPageBuilder() {
         title: page.title,
         slug: page.slug,
         form_type: "custom",
+        status: page.status,
         // Persist complex structures as JSON strings (Laravel-friendly)
         modules: JSON.stringify(page.modules),
         settings: JSON.stringify({
@@ -361,7 +372,12 @@ export default function CustomPageBuilder() {
               </Link>
               <div>
                 <h1 className="text-2xl font-bold">Custom Page Builder</h1>
-                <Badge variant="secondary">Drag & Drop Builder</Badge>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant="secondary">Drag & Drop Builder</Badge>
+                  <Badge variant={page.status === "published" ? "default" : page.status === "archived" ? "destructive" : "outline"}>
+                    {page.status.charAt(0).toUpperCase() + page.status.slice(1)}
+                  </Badge>
+                </div>
               </div>
             </div>
             <div className="flex items-center space-x-2">
@@ -506,6 +522,24 @@ export default function CustomPageBuilder() {
                         }
                         placeholder="Page description"
                       />
+                    </div>
+                    <div>
+                      <Label htmlFor="page-status">Status</Label>
+                      <Select
+                        value={page.status}
+                        onValueChange={(value: "draft" | "published" | "archived") =>
+                          setPage((prev) => ({ ...prev, status: value }))
+                        }
+                      >
+                        <SelectTrigger id="page-status">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="draft">Draft</SelectItem>
+                          <SelectItem value="published">Published</SelectItem>
+                          <SelectItem value="archived">Archived</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </CardContent>
                 </Card>

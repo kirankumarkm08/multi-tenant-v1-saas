@@ -22,7 +22,7 @@ export interface PageModule {
     description: string;
     modules: PageModule[];
     settings: PageSettings;
-    status: 'draft' | 'published';
+    status: 'draft' | 'published' | 'archived';
   }
   
   // types/module.ts
@@ -55,7 +55,7 @@ export interface PageModule {
     form_type: 'custom' | 'event' | 'landing';
     modules?: string;
     settings?: string;
-    status?: 'draft' | 'published';
+    status?: 'draft' | 'published' | 'archived';
   }
   
   export interface PageResponse {

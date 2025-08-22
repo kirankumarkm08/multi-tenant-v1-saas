@@ -1,24 +1,18 @@
-export const API_CONFIG = {
-  // Default to internal proxy to avoid mixed content on Vercel and keep HTTPS in browser
-  // Set NEXT_PUBLIC_API_BASE_URL to a full HTTPS origin (e.g., https://api.yourdomain.com) when available
-  BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || "",
-  BEARER_TOKEN: process.env.NEXT_PUBLIC_API_BEARER_TOKEN || "",
-};
-
 export async function apiFetch(
   endpoint: string,
   options: RequestInit & { token?: string } = {}
 ) {
-  // Ensure endpoint starts with /
-  const url = `${API_CONFIG.BASE_URL}${
-    endpoint.startsWith("/") ? endpoint : `/${endpoint}`
-  }`;
+  // Use the Next.js proxy path /api instead of direct URL to avoid CORS issues
+  const isServer = typeof window === "undefined";
+  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL
+  
+  const url = endpoint.startsWith("/") 
+    ? `${baseUrl}${endpoint.replace(/^\/api/, "")}` // Remove /api prefix if present
+    : `${baseUrl}/${endpoint}`;
 
-  // Prefer passed token, fallback to config
-  // If running in the browser, also try localStorage (set during login)
-  const tokenFromStorage =
-    typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-  const token = tokenFromStorage ?? API_CONFIG.BEARER_TOKEN;
+  // Token priority: explicit token > localStorage token > no token
+  const tokenFromStorage = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+  const token = options.token ?? tokenFromStorage;
 
   const defaultHeaders: HeadersInit = {
     "Content-Type": "application/json",

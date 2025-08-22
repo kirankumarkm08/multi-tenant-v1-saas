@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(del \"C:\\Users\\kiran\\Downloads\\next.config\\next.config.js\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
