@@ -44,17 +44,20 @@ export default function TicketsPage() {
   const fetchTickets = async () => {
     try {
       setLoading(true);
-      // Method 1: Using ticketService (recommended - handles response structure)
-      const data = await ticketService.getTickets();
+      // Using tenantApi.getTickets method directly
+      const response = await tenantApi.getTickets(token || undefined);
+      console.log("Fetched tickets response:", response);
       
-      // Method 2: Direct API call (alternative)
-      // const response = await tenantApi.getTickets(token || undefined);
-      // const data = Array.isArray(response) ? response : response?.data || [];
+      // Handle different response structures
+      let ticketsArray: Ticket[] = [];
+      if (Array.isArray(response)) {
+        ticketsArray = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        ticketsArray = response.data;
+      } else if (response?.tickets && Array.isArray(response.tickets)) {
+        ticketsArray = response.tickets;
+      }
       
-      console.log("Fetched tickets data:", data);
-      
-      // Ensure tickets is always an array
-      const ticketsArray = Array.isArray(data) ? data : [];
       setTickets(ticketsArray);
       setError(null);
     } catch (err: any) {
@@ -70,7 +73,7 @@ export default function TicketsPage() {
     if (!confirm("Are you sure you want to delete this ticket?")) return;
 
     try {
-      await ticketService.deleteTicket(id);
+      await tenantApi.deleteTicket(id, token || undefined);
       await fetchTickets();
     } catch (err: any) {
       alert(err?.message || "Failed to delete ticket");

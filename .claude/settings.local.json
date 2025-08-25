@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(del \"C:\\Users\\kiran\\Downloads\\next.config\\next.config.js\")"
+      "Bash(del \"C:\\Users\\kiran\\Downloads\\next.config\\next.config.js\")",
+      "Bash(npm run dev:*)"
     ],
     "deny": [],
     "ask": []

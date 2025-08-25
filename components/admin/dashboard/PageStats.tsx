@@ -10,35 +10,47 @@ interface StatMeta {
 }
 
 const STAT_META: Record<string, StatMeta> = {
-  totalPages: {
+  total_pages: {
     label: "Total Pages",
     icon: Globe,
     iconColor: "text-blue-600",
     valueColor: "text-blue-400 dark:text-blue-300",
   },
-  totalEvents: {
-    label: "Active Events", 
-    icon: Calendar,
+  published_pages: {
+    label: "Published Pages",
+    icon: Globe,
     iconColor: "text-green-600",
-    valueColor: "text-blue-400 dark:text-blue-300",
+    valueColor: "text-green-400 dark:text-green-300",
   },
-  totalTicketsSold: {
-    label: "Tickets Sold",
-    icon: Ticket,
-    iconColor: "text-purple-600", 
-    valueColor: "text-blue-400 dark:text-blue-300",
+  total_events: {
+    label: "Total Events", 
+    icon: Calendar,
+    iconColor: "text-purple-600",
+    valueColor: "text-purple-400 dark:text-purple-300",
   },
-  totalRevenue: {
-    label: "Revenue",
-    icon: DollarSign,
-    iconColor: "text-orange-600",
-    valueColor: "text-blue-400 dark:text-blue-300",
+  active_events: {
+    label: "Active Events",
+    icon: Calendar,
+    iconColor: "text-green-600", 
+    valueColor: "text-green-400 dark:text-green-300",
   },
-  activeUsers: {
-    label: "Active Users",
+  upcoming_events: {
+    label: "Upcoming Events",
+    icon: Calendar,
+    iconColor: "text-yellow-600",
+    valueColor: "text-yellow-400 dark:text-yellow-300",
+  },
+  draft_events: {
+    label: "Draft Events",
+    icon: Calendar,
+    iconColor: "text-gray-600",
+    valueColor: "text-gray-400 dark:text-gray-300",
+  },
+  total_customer: {
+    label: "Total Customers",
     icon: Users,
-    iconColor: "text-pink-600",
-    valueColor: "text-blue-400 dark:text-blue-300",
+    iconColor: "text-indigo-600",
+    valueColor: "text-indigo-400 dark:text-indigo-300",
   },
 };
 
@@ -59,8 +71,10 @@ export function PagesStats({
         const meta: StatMeta =
           STAT_META[key] || {
             label: key
+              .replace(/_/g, " ")
               .replace(/([A-Z])/g, " $1")
-              .replace(/^\w/, (c) => c.toUpperCase()),
+              .replace(/^\w/, (c) => c.toUpperCase())
+              .replace(/\b\w/g, (c) => c.toUpperCase()),
             icon: Globe,
             iconColor: "text-gray-600",
             valueColor: "text-blue-400 dark:text-blue-300",

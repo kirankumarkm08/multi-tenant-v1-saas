@@ -38,11 +38,34 @@ interface DashboardStats {
   [key: string]: number | string;
 }
 
+interface TenantInfo {
+  id: string;
+  tenant_name: string;
+  tenant_logo: string | null;
+  plan: string;
+  created_at: string;
+  tenant_admin_name: string;
+  tenant_admin_email: string;
+  tenant_admin_phone: string | null;
+}
+
+interface Statistics {
+  total_pages: number;
+  published_pages: number;
+  active_events: number;
+  upcoming_events: number;
+  draft_events: number;
+  total_events: number;
+  total_customer: number;
+}
+
 interface TenantDashboardData {
-  stats?: DashboardStats;
-  recentActivity?: any[];
-  analytics?: any;
-  [key: string]: any;
+  success: boolean;
+  message: string;
+  data: {
+    tenant: TenantInfo;
+    statistics: Statistics;
+  };
 }
 
 /* ------------------------ Utilities ------------------------ */
@@ -102,44 +125,67 @@ function fmt(val: any): Primitive {
 }
 
 // Choose icons/colors for known stats keys; fallback to Globe
-const STAT_META: Record<
-  string,
-  { label: string; icon: any; color: string; bg: string; darkColor: string; darkBg: string; prefix?: string }
-> = {
-  totalPages: {
-    label: "Total Pages",
-    icon: Globe,
-    color: "text-blue-600",
-    bg: "bg-blue-50",
-    darkColor: "dark:text-blue-400",
-    darkBg: "dark:bg-blue-900/20",
-  },
-  totalEvents: {
-    label: "Active Events",
-    icon: Calendar,
-    color: "text-green-600",
-    bg: "bg-green-50",
-    darkColor: "dark:text-green-400",
-    darkBg: "dark:bg-green-900/20",
-  },
-  totalTicketsSold: {
-    label: "Tickets Sold",
-    icon: Ticket,
-    color: "text-purple-600",
-    bg: "bg-purple-50",
-    darkColor: "dark:text-purple-400",
-    darkBg: "dark:bg-purple-900/20",
-  },
-  totalRevenue: {
-    label: "Revenue",
-    icon: DollarSign,
-    color: "text-orange-600",
-    bg: "bg-orange-50",
-    darkColor: "dark:text-orange-400",
-    darkBg: "dark:bg-orange-900/20",
-    prefix: "$",
-  },
-};
+// const STAT_META: Record<
+//   string,
+//   { label: string; icon: any; color: string; bg: string; darkColor: string; darkBg: string; prefix?: string }
+// > = {
+//   total_pages: {
+//     label: "Total Pages",
+//     icon: Globe,
+//     color: "text-blue-600",
+//     bg: "bg-blue-50",
+//     darkColor: "dark:text-blue-400",
+//     darkBg: "dark:bg-blue-900/20",
+//   },
+//   published_pages: {
+//     label: "Published Pages",
+//     icon: Globe,
+//     color: "text-green-600",
+//     bg: "bg-green-50",
+//     darkColor: "dark:text-green-400",
+//     darkBg: "dark:bg-green-900/20",
+//   },
+//   total_events: {
+//     label: "Total Events",
+//     icon: Calendar,
+//     color: "text-purple-600",
+//     bg: "bg-purple-50",
+//     darkColor: "dark:text-purple-400",
+//     darkBg: "dark:bg-purple-900/20",
+//   },
+//   active_events: {
+//     label: "Active Events",
+//     icon: Calendar,
+//     color: "text-green-600",
+//     bg: "bg-green-50",
+//     darkColor: "dark:text-green-400",
+//     darkBg: "dark:bg-green-900/20",
+//   },
+//   upcoming_events: {
+//     label: "Upcoming Events",
+//     icon: Calendar,
+//     color: "text-yellow-600",
+//     bg: "bg-yellow-50",
+//     darkColor: "dark:text-yellow-400",
+//     darkBg: "dark:bg-yellow-900/20",
+//   },
+//   draft_events: {
+//     label: "Draft Events",
+//     icon: Calendar,
+//     color: "text-gray-600",
+//     bg: "bg-gray-50",
+//     darkColor: "dark:text-gray-400",
+//     darkBg: "dark:bg-gray-900/20",
+//   },
+//   total_customer: {
+//     label: "Total Customers",
+//     icon: Users,
+//     color: "text-indigo-600",
+//     bg: "bg-indigo-50",
+//     darkColor: "dark:text-indigo-400",
+//     darkBg: "dark:bg-indigo-900/20",
+//   },
+// };
 
 /* ------------------------ Dynamic UI Blocks ------------------------ */
 
@@ -227,13 +273,17 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Stats can start with localStorage, then enrich from API if available
-  const [stats, setStats] = useState<DashboardStats>({
-    totalPages: 0,
-    totalEvents: 0,
-    totalTicketsSold: 0,
-    totalRevenue: 0,
+  // Stats from API
+  const [stats, setStats] = useState<Statistics>({
+    total_pages: 0,
+    published_pages: 0,
+    active_events: 0,
+    upcoming_events: 0,
+    draft_events: 0,
+    total_events: 0,
+    total_customer: 0,
   });
+  const [tenantInfo, setTenantInfo] = useState<TenantInfo | null>(null);
 
   const [pages, setPages] = useState<Dict[]>([]);
   const [dashboardData, setDashboardData] = useState<TenantDashboardData | null>(null);
@@ -244,31 +294,6 @@ export default function Dashboard() {
     if (!token) router.replace("/admin-login");
   }, [isInitialized, token, router]);
 
-  // Seed stats from localStorage for instant paint
-  useEffect(() => {
-    try {
-      const lsPages = JSON.parse(localStorage.getItem("pages") || "[]");
-      const lsEvents = JSON.parse(localStorage.getItem("events") || "[]");
-      const lsTickets = JSON.parse(localStorage.getItem("tickets") || "[]");
-
-      setStats((s) => ({
-        ...s,
-        totalPages: Array.isArray(lsPages) ? lsPages.length : s.totalPages,
-        totalEvents: Array.isArray(lsEvents) ? lsEvents.length : s.totalEvents,
-        totalTicketsSold: Array.isArray(lsTickets)
-          ? lsTickets.reduce((sum: number, t: any) => sum + (t?.sold || 0), 0)
-          : s.totalTicketsSold,
-        totalRevenue: Array.isArray(lsTickets)
-          ? lsTickets.reduce(
-              (sum: number, t: any) => sum + (Number(t?.price) || 0) * (t?.sold || 0),
-              0
-            )
-          : s.totalRevenue,
-      }));
-    } catch {
-      // ignore
-    }
-  }, []);
 
   // Fetch dashboard data and pages
   useEffect(() => {
@@ -281,11 +306,19 @@ export default function Dashboard() {
       try {
         // Fetch dashboard data from /tenant/dashboard
         const dashboardRes = await tenantApi.getDashboard(token);
-        setDashboardData(dashboardRes);
-
-        // Extract and set stats from dashboard response
-        if (dashboardRes?.stats) {
-          setStats((s) => ({ ...s, ...dashboardRes.stats }));
+        
+        if (dashboardRes?.success && dashboardRes?.data) {
+          setDashboardData(dashboardRes);
+          
+          // Set tenant info
+          if (dashboardRes.data.tenant) {
+            setTenantInfo(dashboardRes.data.tenant);
+          }
+          
+          // Set statistics
+          if (dashboardRes.data.statistics) {
+            setStats(dashboardRes.data.statistics);
+          }
         }
 
         // Also fetch pages for the data grid
@@ -295,24 +328,6 @@ export default function Dashboard() {
 
         const arr = extractArray(pagesRes);
         setPages(Array.isArray(arr) ? arr : []);
-
-        // If pages API returns count/sums, merge them into dynamic stats
-        const maybeStats: Dict = pagesRes?.stats || pagesRes?.meta || {};
-        const numericStats = Object.fromEntries(
-          Object.entries(maybeStats).filter(
-            ([, v]) => typeof v === "number" || (typeof v === "string" && v.trim() !== "")
-          )
-        );
-
-        if (Object.keys(numericStats).length) {
-          setStats((s) => ({ ...s, ...numericStats }));
-        } else {
-          // Otherwise infer totals from pages if fields exist
-          setStats((s) => ({
-            ...s,
-            totalPages: arr?.length ?? s.totalPages,
-          }));
-        }
       } catch (err: any) {
         console.error("Failed to fetch dashboard data:", err);
         setError(err?.message || "Failed to fetch dashboard data");
@@ -341,11 +356,21 @@ export default function Dashboard() {
             {/* Header */}
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                Welcome back! 👋
+                Welcome back{tenantInfo?.tenant_admin_name ? `, ${tenantInfo.tenant_admin_name}` : ''}! 👋
               </h1>
               <p className="text-gray-600 dark:text-gray-300 mt-2">
-                Here's what's happening with your event website today.
+                {tenantInfo?.tenant_name ? `Managing ${tenantInfo.tenant_name}` : 'Here\'s what\'s happening with your event website today.'}
               </p>
+              {tenantInfo && (
+                <div className="flex items-center gap-4 mt-4">
+                  <Badge variant="outline" className="capitalize">
+                    {tenantInfo.plan} Plan
+                  </Badge>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    Member since {tenantInfo.created_at}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Loading / Error */}
@@ -366,78 +391,9 @@ export default function Dashboard() {
             {/* Quick Actions */}
             <QuickActions />
 
-            {/* Dashboard Data Grid */}
-            <div className="grid gap-6 [grid-template-columns:repeat(auto-fit,minmax(320px,1fr))]">
-              {/* Tenant Dashboard Data */}
-              {dashboardData && Object.keys(dashboardData).length > 0 && (
-                <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                  <CardHeader className="border-b border-gray-200 dark:border-gray-700">
-                    <CardTitle className="text-gray-900 dark:text-white">
-                      Tenant Dashboard
-                    </CardTitle>
-                    <CardDescription className="text-gray-600 dark:text-gray-300">
-                      Data from /tenant/dashboard API
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    {dashboardData.recentActivity && Array.isArray(dashboardData.recentActivity) && (
-                      <div className="mb-6">
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                          Recent Activity
-                        </h3>
-                        <DataGrid
-                          items={dashboardData.recentActivity}
-                          preferred={["activity", "timestamp", "user", "type", "status"]}
-                          maxCols={4}
-                        />
-                      </div>
-                    )}
-                    
-                    {dashboardData.analytics && (
-                      <div className="mb-6">
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                          Analytics Data
-                        </h3>
-                        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-                          <pre className="text-xs text-gray-700 dark:text-gray-300 overflow-auto">
-                            {JSON.stringify(dashboardData.analytics, null, 2)}
-                          </pre>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Display any other data from dashboard API */}
-                    {Object.entries(dashboardData)
-                      .filter(([key]) => !['stats', 'recentActivity', 'analytics'].includes(key))
-                      .map(([key, value]) => (
-                        <div key={key} className="mb-4">
-                          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2 capitalize">
-                            {key.replace(/([A-Z])/g, ' $1').trim()}
-                          </h3>
-                          {Array.isArray(value) ? (
-                            <DataGrid
-                              items={value}
-                              preferred={["name", "title", "status", "date", "count"]}
-                              maxCols={4}
-                            />
-                          ) : typeof value === 'object' && value !== null ? (
-                            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-                              <pre className="text-xs text-gray-700 dark:text-gray-300 overflow-auto">
-                                {JSON.stringify(value, null, 2)}
-                              </pre>
-                            </div>
-                          ) : (
-                            <p className="text-sm text-gray-600 dark:text-gray-300">
-                              {String(value)}
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Popular Pages */}
+            {/* Recent Pages */}
+            <div className="grid gap-6">
+              {/* Pages Grid */}
               <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                 <CardHeader className="border-b border-gray-200 dark:border-gray-700">
                   <CardTitle className="text-gray-900 dark:text-white">

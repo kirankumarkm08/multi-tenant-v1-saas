@@ -2,9 +2,12 @@ export async function apiFetch(
   endpoint: string,
   options: RequestInit & { token?: string } = {}
 ) {
-  // Use the Next.js proxy path /api instead of direct URL to avoid CORS issues
   const isServer = typeof window === "undefined";
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL
+  const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://165.227.182.17/api';
+  
+  // Use proxy for IP addresses or in development mode to avoid SSL/CORS issues
+  const shouldUseProxy = !isServer && (API_URL.includes('165.227.182.17') || process.env.NODE_ENV === 'development');
+  const baseUrl = shouldUseProxy ? '/api/proxy' : API_URL;
   
   const url = endpoint.startsWith("/") 
     ? `${baseUrl}${endpoint.replace(/^\/api/, "")}` // Remove /api prefix if present
