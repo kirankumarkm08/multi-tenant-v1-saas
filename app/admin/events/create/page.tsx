@@ -531,9 +531,9 @@ export default function CreateEventPage() {
             {/* Submit Buttons */}
             <div className="flex justify-end space-x-4 pt-6">
               <Link href="/admin/events">
-                <Button type="button" variant="outline">
+                {/* <Button type="button" variant="outline">
                   Cancel
-                </Button>
+                </Button> */}
               </Link>
               <Button type="submit" disabled={loading}>
                 {loading ? "Creating..." : "Create Event"}
