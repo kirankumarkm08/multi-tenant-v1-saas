@@ -16,7 +16,7 @@ const nextConfig = {
   },
   async rewrites() {
     const base = process.env.NEXT_PUBLIC_API_BASE_URL || "https://165.227.182.17/api";
-    // Remove the HTTPS check to allow the rewrite to work
+    // Proxy API calls through Next.js server
     return [
       {
         source: "/api/:path*",

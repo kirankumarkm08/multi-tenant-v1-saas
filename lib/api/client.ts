@@ -1,7 +1,10 @@
 // lib/api/client.ts
 import axios, { AxiosInstance, AxiosError, AxiosResponse } from 'axios';
 
-const BASE_URL = 'https://165.227.182.17/api';
+// Use proxy endpoint in development to avoid SSL issues
+const BASE_URL = process.env.NODE_ENV === 'development' 
+  ? '/api/proxy' 
+  : (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://165.227.182.17/api');
 
 class ApiClient {
   private instance: AxiosInstance;
