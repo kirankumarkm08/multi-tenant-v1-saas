@@ -98,12 +98,8 @@ export default function CreateTicketPage() {
         ...formData,
         event_edition_ids: selectedEvents,
       };
-      
-      // Method 1: Using ticketService (recommended - handles response structure)
+
       await ticketService.createTicket(dataToSubmit);
-      
-      // Method 2: Direct API call (alternative)
-      // await tenantApi.createTicket(dataToSubmit, token || undefined);
       router.push("/admin/tickets");
     } catch (error: any) {
       alert(error?.message || "Failed to create ticket");

@@ -1,469 +1,153 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Plus, Edit, Trash2, Ticket, ArrowLeft } from "lucide-react";
-import Link from "next/link";
-
-interface TicketType {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  quantity: number;
-  sold: number;
-  eventId?: string;
-  features: string[];
-  saleStart: string;
-  saleEnd: string;
-  status: "active" | "inactive" | "sold_out";
-}
+import { useEffect, useState } from "react";
+import Navbar from "@/components/useComponents/Navbar";
+import DynamicTickets from "@/components/useComponents/DynamicTickets";
+import { ticketService, Ticket } from "@/services/ticket.service";
+import { apiFetch } from "@/lib/api-config";
+import { Loader2, Ticket as TicketIcon } from "lucide-react";
 
 export default function TicketsPage() {
-  const [tickets, setTickets] = useState<TicketType[]>([]);
-  const [events, setEvents] = useState<any[]>([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingTicket, setEditingTicket] = useState<TicketType | null>(null);
-  const [formData, setFormData] = useState<Partial<TicketType>>({
-    name: "",
-    description: "",
-    price: 0,
-    quantity: 100,
-    sold: 0,
-    eventId: "",
-    features: [],
-    saleStart: "",
-    saleEnd: "",
-    status: "active",
-  });
+  const [pages, setPages] = useState<{ label: string; href: string }[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "active" | "upcoming">("active");
 
   useEffect(() => {
-    const savedTickets = JSON.parse(localStorage.getItem("tickets") || "[]");
-    const savedEvents = JSON.parse(localStorage.getItem("events") || "[]");
-    setTickets(savedTickets);
-    setEvents(savedEvents);
+    fetchTickets();
+    fetchPages();
   }, []);
 
-  const saveTickets = (updatedTickets: TicketType[]) => {
-    localStorage.setItem("tickets", JSON.stringify(updatedTickets));
-    setTickets(updatedTickets);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (editingTicket) {
-      const updatedTickets = tickets.map((ticket) =>
-        ticket.id === editingTicket.id ? { ...ticket, ...formData } : ticket
-      );
-      saveTickets(updatedTickets);
-    } else {
-      const newTicket: TicketType = {
-        // id: Date.now().toString(),
-        ...(formData as TicketType),
-      };
-      saveTickets([...tickets, newTicket]);
-    }
-
-    resetForm();
-  };
-
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      description: "",
-      price: 0,
-      quantity: 100,
-      sold: 0,
-      eventId: "",
-      features: [],
-      saleStart: "",
-      saleEnd: "",
-      status: "active",
-    });
-    setEditingTicket(null);
-    setIsDialogOpen(false);
-  };
-
-  const handleEdit = (ticket: TicketType) => {
-    setEditingTicket(ticket);
-    setFormData(ticket);
-    setIsDialogOpen(true);
-  };
-
-  const handleDelete = (ticketId: string) => {
-    if (confirm("Are you sure you want to delete this ticket type?")) {
-      const updatedTickets = tickets.filter((ticket) => ticket.id !== ticketId);
-      saveTickets(updatedTickets);
+  const fetchTickets = async () => {
+    try {
+      setLoading(true);
+      const data = await ticketService.getTickets();
+      console.log("Fetched tickets:", data);
+      setTickets(data);
+    } catch (error) {
+      console.error("Failed to fetch tickets:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
+  const fetchPages = async () => {
+    try {
+      const response = await apiFetch("/tenant/pages");
+      const pageData = Array.isArray(response) ? response : response?.data || [];
+      
+      // Filter pages with show_in_nav enabled
+      const navItems = pageData
+        .filter((p: any) => {
+          const settings = typeof p.settings === "string" 
+            ? JSON.parse(p.settings) 
+            : p.settings;
+          return settings?.show_in_nav === true && p.status === "published";
+        })
+        .map((p: any) => ({
+          label: p.title,
+          href: p.slug ? `/${p.slug}` : `/page/${p.id}`,
+        }));
+      
+      // Add tickets page to navigation
+      navItems.push({ label: "Tickets", href: "/tickets" });
+      
+      setPages(navItems);
+    } catch (err) {
+      console.error("Failed to load pages", err);
+    }
+  };
+
+  const getFilteredTickets = () => {
+    switch (filter) {
       case "active":
-        return "bg-green-100 text-green-800";
-      case "inactive":
-        return "bg-gray-100 text-gray-800";
-      case "sold_out":
-        return "bg-red-100 text-red-800";
+        return tickets.filter(t => t.status === "active");
+      case "upcoming":
+        const now = new Date();
+        return tickets.filter(t => {
+          const startDate = new Date(t.ticket_start_date);
+          return startDate > now && t.status !== "inactive";
+        });
+      case "all":
       default:
-        return "bg-gray-100 text-gray-800";
+        return tickets;
     }
   };
 
-  const getEventName = (eventId: string) => {
-    const event = events.find((e) => e.id === eventId);
-    return event ? event.title : "No Event";
-  };
+  const filteredTickets = getFilteredTickets();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="border-b bg-white">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Link href="/admin/dashboard">
-                <Button variant="ghost" size="sm">
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to Dashboard
-                </Button>
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold">Tickets Management</h1>
-                <p className="text-gray-600">Create and manage ticket types</p>
-              </div>
-            </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Ticket Type
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>
-                    {editingTicket
-                      ? "Edit Ticket Type"
-                      : "Create New Ticket Type"}
-                  </DialogTitle>
-                  <DialogDescription>
-                    Configure your ticket pricing and availability.
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="name">Ticket Name</Label>
-                      <Input
-                        id="name"
-                        value={formData.name}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            name: e.target.value,
-                          }))
-                        }
-                        placeholder="e.g. Early Bird, VIP, General"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="eventId">Event</Label>
-                      <select
-                        id="eventId"
-                        value={formData.eventId}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            eventId: e.target.value,
-                          }))
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      >
-                        <option value="">Select Event</option>
-                        {events.map((event) => (
-                          <option key={event.id} value={event.id}>
-                            {event.title}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea
-                      id="description"
-                      value={formData.description}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          description: e.target.value,
-                        }))
-                      }
-                      placeholder="Describe what's included with this ticket..."
-                      rows={3}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <Label htmlFor="price">Price ($)</Label>
-                      <Input
-                        id="price"
-                        type="number"
-                        step="0.01"
-                        value={formData.price}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            price: parseFloat(e.target.value),
-                          }))
-                        }
-                        min="0"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="quantity">Total Quantity</Label>
-                      <Input
-                        id="quantity"
-                        type="number"
-                        value={formData.quantity}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            quantity: parseInt(e.target.value),
-                          }))
-                        }
-                        min="1"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="status">Status</Label>
-                      <select
-                        id="status"
-                        value={formData.status}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            status: e.target.value as any,
-                          }))
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      >
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                        <option value="sold_out">Sold Out</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="saleStart">Sale Start Date</Label>
-                      <Input
-                        id="saleStart"
-                        type="datetime-local"
-                        value={formData.saleStart}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            saleStart: e.target.value,
-                          }))
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="saleEnd">Sale End Date</Label>
-                      <Input
-                        id="saleEnd"
-                        type="datetime-local"
-                        value={formData.saleEnd}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            saleEnd: e.target.value,
-                          }))
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="features">Features (comma-separated)</Label>
-                    <Input
-                      id="features"
-                      value={formData.features?.join(", ") || ""}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          features: e.target.value
-                            .split(",")
-                            .map((f) => f.trim())
-                            .filter((f) => f),
-                        }))
-                      }
-                      placeholder="Access to all sessions, Lunch included, Networking event"
-                    />
-                  </div>
-
-                  <div className="flex justify-end space-x-2">
-                    <Button type="button" variant="outline" onClick={resetForm}>
-                      Cancel
-                    </Button>
-                    <Button type="submit">
-                      {editingTicket ? "Update Ticket" : "Create Ticket"}
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <Navbar pages={pages} />
+      
+      {/* Hero Section */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-16">
+        <div className="container mx-auto px-4 text-center">
+          <TicketIcon className="w-16 h-16 mx-auto mb-4" />
+          <h1 className="text-4xl font-bold mb-4">Event Tickets</h1>
+          <p className="text-xl">Secure your spot at amazing events</p>
         </div>
       </div>
 
-      <div className="container mx-auto p-6">
-        {tickets.length === 0 ? (
-          <Card>
-            <CardContent className="text-center py-12">
-              <Ticket className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No ticket types yet
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Create different ticket types for your events.
-              </p>
-              <Button onClick={() => setIsDialogOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Ticket Type
-              </Button>
-            </CardContent>
-          </Card>
+      {/* Filter Tabs */}
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-center gap-4 mb-8">
+          <button
+            onClick={() => setFilter("active")}
+            className={`px-6 py-2 rounded-full font-medium transition-colors ${
+              filter === "active"
+                ? "bg-blue-600 text-white"
+                : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+            }`}
+          >
+            On Sale Now
+          </button>
+          <button
+            onClick={() => setFilter("upcoming")}
+            className={`px-6 py-2 rounded-full font-medium transition-colors ${
+              filter === "upcoming"
+                ? "bg-blue-600 text-white"
+                : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+            }`}
+          >
+            Coming Soon
+          </button>
+          <button
+            onClick={() => setFilter("all")}
+            className={`px-6 py-2 rounded-full font-medium transition-colors ${
+              filter === "all"
+                ? "bg-blue-600 text-white"
+                : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+            }`}
+          >
+            All Tickets
+          </button>
+        </div>
+
+        {/* Tickets Display */}
+        {loading ? (
+          <div className="flex justify-center items-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            <span className="ml-2 text-gray-600 dark:text-gray-400">Loading tickets...</span>
+          </div>
+        ) : filteredTickets.length > 0 ? (
+          <DynamicTickets 
+            tickets={filteredTickets} 
+            title=""
+            showOnlyActive={false}
+          />
         ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Ticket Types</CardTitle>
-              <CardDescription>
-                Manage your event ticket pricing and availability
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Ticket Name</TableHead>
-                    <TableHead>Event</TableHead>
-                    <TableHead>Price</TableHead>
-                    <TableHead>Availability</TableHead>
-                    <TableHead>Sales Period</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {tickets.map((ticket) => (
-                    <TableRow key={ticket.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{ticket.name}</div>
-                          <div className="text-sm text-gray-600 truncate max-w-xs">
-                            {ticket.description}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm">
-                          {getEventName(ticket.eventId || "")}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-medium">${ticket.price}</span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          <div>
-                            {ticket.sold || 0} / {ticket.quantity} sold
-                          </div>
-                          <div className="text-gray-500">
-                            {ticket.quantity - (ticket.sold || 0)} remaining
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          {ticket.saleStart && (
-                            <div>
-                              Start:{" "}
-                              {new Date(ticket.saleStart).toLocaleDateString()}
-                            </div>
-                          )}
-                          {ticket.saleEnd && (
-                            <div>
-                              End:{" "}
-                              {new Date(ticket.saleEnd).toLocaleDateString()}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(ticket.status)}>
-                          {ticket.status.replace("_", " ")}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(ticket)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(ticket.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <div className="text-center py-20">
+            <TicketIcon className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+            <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
+              No tickets available
+            </h3>
+            <p className="text-gray-500 dark:text-gray-400">
+              {filter === "upcoming" 
+                ? "No upcoming tickets at the moment. Check back soon!"
+                : "No tickets match your current filter."}
+            </p>
+          </div>
         )}
       </div>
     </div>

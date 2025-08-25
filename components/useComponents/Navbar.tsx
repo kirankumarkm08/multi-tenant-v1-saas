@@ -23,8 +23,31 @@ export default function Navbar({ pages: initialPages }: NavbarProps) {
   useEffect(() => {
     const fetchNavigation = async () => {
       try {
-        const data = await apiFetch("/customer/pages/navigation");
-        setPages(data.pages || data || []);
+        // Try customer endpoint first, fallback to tenant endpoint
+        let data;
+        try {
+          data = await apiFetch("/customer/pages/navigation");
+          setPages(data.pages || data || []);
+        } catch (customerError) {
+          // Fallback to tenant endpoint
+          const tenantData = await apiFetch("/tenant/pages");
+          
+          // Filter and format pages with show_in_nav enabled
+          const navPages = tenantData
+            .filter((page: any) => {
+              const settings = typeof page.settings === "string" 
+                ? JSON.parse(page.settings) 
+                : page.settings;
+              return settings?.show_in_nav === true && page.status === "published";
+            })
+            .map((page: any) => ({
+              label: page.title,
+              href: page.slug ? `/${page.slug}` : `/page/${page.id}`,
+              page_type: page.page_type || "page",
+            }));
+          
+          setPages(navPages);
+        }
       } catch (error) {
         console.error("Failed to fetch navigation:", error);
       } finally {
@@ -37,7 +60,8 @@ export default function Navbar({ pages: initialPages }: NavbarProps) {
     }
   }, [initialPages]);
 
-  const filteredPages = pages.filter((page) => page.page_type === "page");
+  // Show all pages that have show_in_nav enabled
+  const filteredPages = pages;
 
   return (
     <nav className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ import {
   Trash2,
   GripVertical,
   Loader2,
+  ArrowLeft,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-config";
 import { useAuth } from "@/context/AuthContext";
@@ -47,7 +49,7 @@ interface PageSettings {
   submitButtonText: string;
   successMessage: string;
   redirectUrl?: string;
-  show_in_nav: boolean; // Add show_in_nav here at page level
+  show_in_nav: boolean;
 }
 
 interface RegistrationPage {
@@ -60,111 +62,59 @@ interface RegistrationPage {
   status: "draft" | "published" | "archived";
 }
 
-const defaultFields: FormField[] = [
-  {
-    id: "1",
-    name: "first_name",
-    label: "First Name",
-    type: "text",
-    required: true,
-    placeholder: "Enter your first name",
-    order: 0,
-  },
-  {
-    id: "2",
-    name: "last_name",
-    label: "Last Name",
-    type: "text",
-    required: true,
-    placeholder: "Enter your last name",
-    order: 1,
-  },
-  {
-    id: "3",
-    name: "email",
-    label: "Email Address",
-    type: "email",
-    required: true,
-    placeholder: "Enter your email address",
-    order: 2,
-  },
-  {
-    id: "4",
-    name: "password",
-    label: "Password",
-    type: "password",
-    required: true,
-    placeholder: "Enter your password",
-    order: 3,
-  },
-  {
-    id: "5",
-    name: "phone",
-    label: "Phone",
-    type: "tel",
-    required: true,
-    placeholder: "Enter your phone number",
-    order: 4,
-  },
-];
-
-export default function RegistrationPageBuilder() {
+export default function EditRegistrationPage() {
   const { token, isInitialized } = useAuth();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pageId = searchParams.get("id");
 
-  const [page, setPage] = useState<RegistrationPage>({
-    id: "",
-    title: "Event Registration",
-    slug: "",
-    page_type: "register",
-    form_config: defaultFields,
-    settings: {
-      submitButtonText: "Register Now",
-      successMessage: "Thank you for registering! We will contact you soon.",
-      redirectUrl: "",
-      show_in_nav: false, // default value
-    },
-    status: "draft",
-  });
-
+  const [page, setPage] = useState<RegistrationPage | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [draggedField, setDraggedField] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isInitialized) {
-      console.log("Registration Page Builder - Auth not initialized yet");
-      return;
-    }
+    if (!isInitialized) return;
 
     if (!token) {
-      console.log("Registration Page Builder - No token available");
+      router.push("/login");
       return;
     }
 
-    console.log("Registration Page Builder - Token available, checking for page ID");
-    const pageId = new URLSearchParams(window.location.search).get("id");
-    if (pageId) {
-      console.log("Registration Page Builder - Loading page with ID:", pageId);
-      loadPage(pageId);
-    } else {
-      console.log("Registration Page Builder - No page ID, using default page");
+    if (!pageId) {
+      alert("No page ID provided");
+      router.push("/admin/page-builder/registration");
+      return;
     }
-  }, [token, isInitialized]);
 
-  const loadPage = async (pageId: string) => {
+    loadPage(pageId);
+  }, [token, isInitialized, pageId, router]);
+
+  const loadPage = async (id: string) => {
     try {
-      const data = await apiFetch(`/tenant/pages/${pageId}`, {
+      setLoading(true);
+      console.log("Loading page with ID:", id);
+      console.log("Token available:", !!token);
+      
+      const data = await apiFetch(`/tenant/pages/${id}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
+      console.log("Page data received:", data);
+
       const formConfigRaw =
         typeof data.form_config === "string"
           ? JSON.parse(data.form_config)
           : data.form_config;
-      const formConfig: FormField[] = Array.isArray(formConfigRaw.fields)
-        ? formConfigRaw.fields
-        : [];
+      
+      // Handle both direct array and nested fields structure
+      const formConfig: FormField[] = Array.isArray(formConfigRaw) 
+        ? formConfigRaw 
+        : Array.isArray(formConfigRaw?.fields) 
+          ? formConfigRaw.fields 
+          : [];
 
       const settingsParsed =
         typeof data.settings === "string" ? JSON.parse(data.settings) : data.settings;
@@ -174,45 +124,68 @@ export default function RegistrationPageBuilder() {
         form_config: formConfig,
         settings: {
           submitButtonText: settingsParsed?.submitButtonText || "Register Now",
-          successMessage: settingsParsed?.successMessage || "Thank you for registering! We will contact you soon.",
+          successMessage: settingsParsed?.successMessage || "Thank you for registering!",
           redirectUrl: settingsParsed?.redirectUrl || "",
           show_in_nav: settingsParsed?.show_in_nav ?? false,
         },
         status: data.status || "draft",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to load page:", error);
-      alert("Failed to load page data");
+      console.error("Error details:", {
+        message: error.message,
+        status: error.status,
+        data: error.data
+      });
+      
+      if (error.status === 404) {
+        alert(`Page with ID ${id} not found`);
+      } else if (error.status === 401) {
+        alert("Authentication failed. Please login again.");
+        router.push("/login");
+        return;
+      } else {
+        alert(`Failed to load page: ${error.message || "Unknown error"}`);
+      }
+      router.push("/admin/page-builder/registration");
+    } finally {
+      setLoading(false);
     }
   };
 
   const addField = () => {
+    if (!page) return;
+    
     const newField: FormField = {
       id: Date.now().toString(),
-      name: `company_${Date.now()}`,
-      label: "Company",
+      name: `field_${Date.now()}`,
+      label: "New Field",
       type: "text",
       required: false,
-      placeholder: "Enter your company",
+      placeholder: "Enter value",
       order: page.form_config.length,
     };
 
-    setPage((prev) => ({
-      ...prev,
-      form_config: [...prev.form_config, newField],
-    }));
+    setPage({
+      ...page,
+      form_config: [...page.form_config, newField],
+    });
   };
 
   const updateField = (fieldId: string, updates: Partial<FormField>) => {
-    setPage((prev) => ({
-      ...prev,
-      form_config: prev.form_config.map((field) =>
+    if (!page) return;
+    
+    setPage({
+      ...page,
+      form_config: page.form_config.map((field) =>
         field.id === fieldId ? { ...field, ...updates } : field
       ),
-    }));
+    });
   };
 
   const deleteField = (fieldId: string) => {
+    if (!page) return;
+    
     const field = page.form_config.find((f) => f.id === fieldId);
     if (
       field &&
@@ -222,13 +195,15 @@ export default function RegistrationPageBuilder() {
       return;
     }
 
-    setPage((prev) => ({
-      ...prev,
-      form_config: prev.form_config.filter((field) => field.id !== fieldId),
-    }));
+    setPage({
+      ...page,
+      form_config: page.form_config.filter((field) => field.id !== fieldId),
+    });
   };
 
   const savePage = async () => {
+    if (!page) return;
+    
     setIsSaving(true);
     try {
       const requestData = {
@@ -240,13 +215,10 @@ export default function RegistrationPageBuilder() {
         status: page.status || "draft",
       };
 
-      const endpoint = page.id ? `/tenant/pages/${page.id}` : `/tenant/pages`;
-      const method = page.id ? "PATCH" : "POST";
+      console.log("Saving page with PATCH method:", requestData);
 
-      console.log(`Saving page with ${method} method to ${endpoint}:`, requestData);
-
-      const savedPage = await apiFetch(endpoint, {
-        method,
+      const response = await apiFetch(`/tenant/pages/${page.id}`, {
+        method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -254,13 +226,8 @@ export default function RegistrationPageBuilder() {
         body: JSON.stringify(requestData),
       });
 
-      if (!page.id) {
-        setPage((prev) => ({ ...prev, id: savedPage.id }));
-        window.history.pushState({}, "", `?id=${savedPage.id}`);
-      }
-
-      console.log("Page saved successfully:", savedPage);
-      alert("Page saved successfully!");
+      console.log("Page saved successfully:", response);
+      alert("Page updated successfully!");
     } catch (error: any) {
       console.error("Save error:", error);
       if (error?.data?.errors) {
@@ -286,7 +253,7 @@ export default function RegistrationPageBuilder() {
 
   const handleDrop = (e: React.DragEvent, targetFieldId: string) => {
     e.preventDefault();
-    if (!draggedField || draggedField === targetFieldId) return;
+    if (!draggedField || draggedField === targetFieldId || !page) return;
 
     const draggedIndex = page.form_config.findIndex((f) => f.id === draggedField);
     const targetIndex = page.form_config.findIndex((f) => f.id === targetFieldId);
@@ -300,9 +267,34 @@ export default function RegistrationPageBuilder() {
       order: index,
     }));
 
-    setPage((prev) => ({ ...prev, form_config: updatedFields }));
+    setPage({ ...page, form_config: updatedFields });
     setDraggedField(null);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="flex items-center space-x-2">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span>Loading page...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!page) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-bold mb-2">Page not found</h2>
+          <Button onClick={() => router.push("/admin/page-builder/registration")}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Registration Pages
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -310,12 +302,22 @@ export default function RegistrationPageBuilder() {
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => router.push("/admin/page-builder/registration")}
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back
+                </Button>
+              </div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Registration Page Builder
+                Edit Registration Page
               </h1>
               <div className="flex items-center gap-2 mt-1">
                 <Badge variant="secondary" className="dark:bg-gray-700 dark:text-gray-200">
-                  Registration Form
+                  ID: {page.id}
                 </Badge>
                 <Badge
                   variant={
@@ -324,13 +326,6 @@ export default function RegistrationPageBuilder() {
                       : page.status === "archived"
                       ? "destructive"
                       : "outline"
-                  }
-                  className={
-                    page.status === "published"
-                      ? ""
-                      : page.status === "archived"
-                      ? ""
-                      : "dark:border-gray-600 dark:text-gray-200"
                   }
                 >
                   {page.status.charAt(0).toUpperCase() + page.status.slice(1)}
@@ -347,7 +342,7 @@ export default function RegistrationPageBuilder() {
                 ) : (
                   <>
                     <Save className="mr-2 h-4 w-4" />
-                    Save Page
+                    Save Changes
                   </>
                 )}
               </Button>
@@ -370,9 +365,9 @@ export default function RegistrationPageBuilder() {
                   <Input
                     id="page-title"
                     value={page.title}
-                    onChange={(e) => setPage((prev) => ({ ...prev, title: e.target.value }))}
+                    onChange={(e) => setPage({ ...page, title: e.target.value })}
                     placeholder="Event Registration"
-                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   />
                 </div>
 
@@ -383,17 +378,10 @@ export default function RegistrationPageBuilder() {
                   <Input
                     id="page-slug"
                     value={page.slug}
-                    onChange={(e) => setPage((prev) => ({ ...prev, slug: e.target.value }))}
+                    onChange={(e) => setPage({ ...page, slug: e.target.value })}
                     placeholder="event-registration"
-                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   />
-                </div>
-
-                <div>
-                  <Label htmlFor="form-type" className="dark:text-gray-200">
-                    Form Type
-                  </Label>
-                  <Badge>{page.page_type}</Badge>
                 </div>
 
                 <div>
@@ -403,22 +391,16 @@ export default function RegistrationPageBuilder() {
                   <Select
                     value={page.status}
                     onValueChange={(value: "draft" | "published" | "archived") =>
-                      setPage((prev) => ({ ...prev, status: value }))
+                      setPage({ ...page, status: value })
                     }
                   >
-                    <SelectTrigger id="page-status" className="dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                      <SelectValue placeholder="Select status" />
+                    <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600">
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
-                      <SelectItem value="draft" className="dark:text-gray-200 dark:focus:bg-gray-700">
-                        Draft
-                      </SelectItem>
-                      <SelectItem value="published" className="dark:text-gray-200 dark:focus:bg-gray-700">
-                        Published
-                      </SelectItem>
-                      <SelectItem value="archived" className="dark:text-gray-200 dark:focus:bg-gray-700">
-                        Archived
-                      </SelectItem>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="published">Published</SelectItem>
+                      <SelectItem value="archived">Archived</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -431,13 +413,13 @@ export default function RegistrationPageBuilder() {
                     id="submit-text"
                     value={page.settings.submitButtonText}
                     onChange={(e) =>
-                      setPage((prev) => ({
-                        ...prev,
-                        settings: { ...prev.settings, submitButtonText: e.target.value },
-                      }))
+                      setPage({
+                        ...page,
+                        settings: { ...page.settings, submitButtonText: e.target.value },
+                      })
                     }
                     placeholder="Register Now"
-                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   />
                 </div>
 
@@ -449,40 +431,40 @@ export default function RegistrationPageBuilder() {
                     id="success-message"
                     value={page.settings.successMessage}
                     onChange={(e) =>
-                      setPage((prev) => ({
-                        ...prev,
-                        settings: { ...prev.settings, successMessage: e.target.value },
-                      }))
+                      setPage({
+                        ...page,
+                        settings: { ...page.settings, successMessage: e.target.value },
+                      })
                     }
                     placeholder="Thank you for registering!"
-                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   />
                 </div>
 
-                {/* NEW show_in_nav toggle button group */}
                 <div className="pt-4">
-                  <Label className="dark:text-gray-200 mb-2 block">Show in Nav:</Label>
-                  <Button
-                    variant={page.settings.show_in_nav ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setPage((prev) => ({
-                      ...prev,
-                      settings: { ...prev.settings, show_in_nav: true },
-                    }))}
-                    className="mr-2"
-                  >
-                    Yes
-                  </Button>
-                  <Button
-                    variant={!page.settings.show_in_nav ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setPage((prev) => ({
-                      ...prev,
-                      settings: { ...prev.settings, show_in_nav: false },
-                    }))}
-                  >
-                    No
-                  </Button>
+                  <Label className="dark:text-gray-200 mb-2 block">Show in Navigation</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={page.settings.show_in_nav ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setPage({
+                        ...page,
+                        settings: { ...page.settings, show_in_nav: true },
+                      })}
+                    >
+                      Yes
+                    </Button>
+                    <Button
+                      variant={!page.settings.show_in_nav ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setPage({
+                        ...page,
+                        settings: { ...page.settings, show_in_nav: false },
+                      })}
+                    >
+                      No
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -504,16 +486,16 @@ export default function RegistrationPageBuilder() {
           <div className="lg:col-span-2">
             <Card className="dark:bg-gray-800 dark:border-gray-700">
               <CardHeader className="dark:border-gray-700">
-                <CardTitle className="dark:text-white">Form Builder</CardTitle>
+                <CardTitle className="dark:text-white">Form Fields</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {(page.form_config || [])
+                  {page.form_config
                     .sort((a, b) => a.order - b.order)
                     .map((field) => (
                       <div
                         key={field.id}
-                        className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 dark:bg-gray-750 relative group hover:shadow-md dark:hover:shadow-gray-900/20 transition-shadow"
+                        className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 relative group hover:shadow-md transition-shadow"
                         draggable
                         onDragStart={(e) => handleDragStart(e, field.id)}
                         onDragOver={handleDragOver}
@@ -521,13 +503,8 @@ export default function RegistrationPageBuilder() {
                       >
                         <div className="flex items-center justify-between mb-4">
                           <div className="flex items-center space-x-2">
-                            <GripVertical className="h-4 w-4 text-gray-400 dark:text-gray-500 cursor-move" />
-                            <Badge
-                              variant="outline"
-                              className="dark:border-gray-600 dark:text-gray-300"
-                            >
-                              {field.type}
-                            </Badge>
+                            <GripVertical className="h-4 w-4 text-gray-400 cursor-move" />
+                            <Badge variant="outline">{field.type}</Badge>
                             {field.required && (
                               <Badge variant="destructive" className="text-xs">
                                 Required
@@ -545,7 +522,7 @@ export default function RegistrationPageBuilder() {
                               variant="ghost"
                               size="sm"
                               onClick={() => deleteField(field.id)}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity dark:hover:bg-gray-600"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -561,7 +538,7 @@ export default function RegistrationPageBuilder() {
                                 updateField(field.id, { label: e.target.value })
                               }
                               placeholder="Field label"
-                              className="dark:bg-gray-600 dark:border-gray-500 dark:text-white dark:placeholder-gray-400"
+                              className="dark:bg-gray-600 dark:border-gray-500 dark:text-white"
                             />
                           </div>
                           <div>
@@ -579,7 +556,7 @@ export default function RegistrationPageBuilder() {
                                 "password",
                                 "phone",
                               ].includes(field.name)}
-                              className="dark:bg-gray-600 dark:border-gray-500 dark:text-white dark:placeholder-gray-400 disabled:dark:bg-gray-700 disabled:dark:text-gray-500"
+                              className="dark:bg-gray-600 dark:border-gray-500 dark:text-white disabled:opacity-50"
                             />
                           </div>
                         </div>
@@ -593,64 +570,19 @@ export default function RegistrationPageBuilder() {
                                 updateField(field.id, { type: value as any })
                               }
                             >
-                              <SelectTrigger className="dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                              <SelectTrigger className="dark:bg-gray-600 dark:border-gray-500">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent className="dark:bg-gray-700 dark:border-gray-600">
-                                <SelectItem
-                                  value="text"
-                                  className="dark:text-white dark:hover:bg-gray-600"
-                                >
-                                  Text
-                                </SelectItem>
-                                <SelectItem
-                                  value="email"
-                                  className="dark:text-white dark:hover:bg-gray-600"
-                                >
-                                  Email
-                                </SelectItem>
-                                <SelectItem
-                                  value="tel"
-                                  className="dark:text-white dark:hover:bg-gray-600"
-                                >
-                                  Phone
-                                </SelectItem>
-                                <SelectItem
-                                  value="password"
-                                  className="dark:text-white dark:hover:bg-gray-600"
-                                >
-                                  Password
-                                </SelectItem>
-                                <SelectItem
-                                  value="number"
-                                  className="dark:text-white dark:hover:bg-gray-600"
-                                >
-                                  Number
-                                </SelectItem>
-                                <SelectItem
-                                  value="textarea"
-                                  className="dark:text-white dark:hover:bg-gray-600"
-                                >
-                                  Textarea
-                                </SelectItem>
-                                <SelectItem
-                                  value="select"
-                                  className="dark:text-white dark:hover:bg-gray-600"
-                                >
-                                  Select
-                                </SelectItem>
-                                <SelectItem
-                                  value="checkbox"
-                                  className="dark:text-white dark:hover:bg-gray-600"
-                                >
-                                  Checkbox
-                                </SelectItem>
-                                <SelectItem
-                                  value="radio"
-                                  className="dark:text-white dark:hover:bg-gray-600"
-                                >
-                                  Radio
-                                </SelectItem>
+                                <SelectItem value="text">Text</SelectItem>
+                                <SelectItem value="email">Email</SelectItem>
+                                <SelectItem value="tel">Phone</SelectItem>
+                                <SelectItem value="password">Password</SelectItem>
+                                <SelectItem value="number">Number</SelectItem>
+                                <SelectItem value="textarea">Textarea</SelectItem>
+                                <SelectItem value="select">Select</SelectItem>
+                                <SelectItem value="checkbox">Checkbox</SelectItem>
+                                <SelectItem value="radio">Radio</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -669,7 +601,7 @@ export default function RegistrationPageBuilder() {
                                 "password",
                                 "phone",
                               ].includes(field.name)}
-                              className="h-4 w-4 dark:bg-gray-600 dark:border-gray-500"
+                              className="h-4 w-4"
                             />
                             <Label htmlFor={`required-${field.id}`} className="dark:text-gray-200">
                               Required
@@ -685,7 +617,7 @@ export default function RegistrationPageBuilder() {
                               updateField(field.id, { placeholder: e.target.value })
                             }
                             placeholder="Enter placeholder text"
-                            className="dark:bg-gray-600 dark:border-gray-500 dark:text-white dark:placeholder-gray-400"
+                            className="dark:bg-gray-600 dark:border-gray-500 dark:text-white"
                           />
                         </div>
 
@@ -703,68 +635,10 @@ export default function RegistrationPageBuilder() {
                                 })
                               }
                               placeholder="Option 1, Option 2, Option 3"
-                              className="dark:bg-gray-600 dark:border-gray-500 dark:text-white dark:placeholder-gray-400"
+                              className="dark:bg-gray-600 dark:border-gray-500 dark:text-white"
                             />
                           </div>
                         )}
-
-                        {/* Field Preview */}
-                        <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700 rounded">
-                          <Label className="text-sm font-medium dark:text-gray-200">
-                            {field.label}
-                            {field.required && <span className="text-red-500 ml-1">*</span>}
-                          </Label>
-                          {field.type === "textarea" ? (
-                            <textarea
-                              className="w-full mt-1 px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md bg-white dark:bg-gray-600 dark:text-white dark:placeholder-gray-400"
-                              placeholder={field.placeholder}
-                              disabled
-                              rows={3}
-                            />
-                          ) : field.type === "select" ? (
-                            <select
-                              className="w-full mt-1 px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md bg-white dark:bg-gray-600 dark:text-white"
-                              disabled
-                            >
-                              <option>{field.placeholder || "Select an option"}</option>
-                              {field.options?.map((option, index) => (
-                                <option key={index}>{option}</option>
-                              ))}
-                            </select>
-                          ) : field.type === "checkbox" ? (
-                            <div className="mt-1 flex items-center space-x-2">
-                              <input
-                                type="checkbox"
-                                disabled
-                                className="h-4 w-4 dark:bg-gray-600 dark:border-gray-500"
-                              />
-                              <span className="text-sm dark:text-gray-300">
-                                {field.placeholder || field.label}
-                              </span>
-                            </div>
-                          ) : field.type === "radio" ? (
-                            <div className="mt-1 space-y-2">
-                              {field.options?.map((option, index) => (
-                                <div key={index} className="flex items-center space-x-2">
-                                  <input
-                                    type="radio"
-                                    name={field.name}
-                                    disabled
-                                    className="h-4 w-4 dark:bg-gray-600 dark:border-gray-500"
-                                  />
-                                  <span className="text-sm dark:text-gray-300">{option}</span>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <input
-                              type={field.type}
-                              className="w-full mt-1 px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md bg-white dark:bg-gray-600 dark:text-white dark:placeholder-gray-400"
-                              placeholder={field.placeholder}
-                              disabled
-                            />
-                          )}
-                        </div>
                       </div>
                     ))}
 

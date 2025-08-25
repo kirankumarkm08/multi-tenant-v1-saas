@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/context/ThemeContext";
 import ProfileDropdown from "./Profile";
+import { apiFetch } from "@/lib/api-config";
 
 // Icons (lucide-react)
 import {
@@ -48,12 +49,49 @@ export default function Sidebar({
   setIsOpen: (open: boolean) => void;
 }) {
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { logout, token } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [expandedItems, setExpandedItems] = useState<string[]>([
     "pages",
     "modules",
   ]);
+  const [dynamicPages, setDynamicPages] = useState<MenuItem[]>([]);
+
+  // Fetch pages with show_in_nav enabled
+  useEffect(() => {
+    const fetchNavPages = async () => {
+      if (!token) return;
+      
+      try {
+        const pages = await apiFetch("/tenant/pages", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        // Filter pages with show_in_nav enabled
+        const navPages = pages
+          .filter((page: any) => {
+            const settings = typeof page.settings === "string" 
+              ? JSON.parse(page.settings) 
+              : page.settings;
+            return settings?.show_in_nav === true && page.status === "published";
+          })
+          .map((page: any) => ({
+            id: `page-${page.id}`,
+            label: page.title,
+            icon: FileText,
+            href: page.slug ? `/${page.slug}` : `/page/${page.id}`,
+          }));
+
+        setDynamicPages(navPages);
+      } catch (error) {
+        console.error("Failed to fetch navigation pages:", error);
+      }
+    };
+
+    fetchNavPages();
+  }, [token]);
 
   const menuItems: MenuItem[] = [
     {
@@ -285,6 +323,19 @@ export default function Sidebar({
         {/* Navigation */}
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
           {menuItems.map((item) => renderMenuItem(item))}
+          
+          {/* Dynamic Pages Section */}
+          {dynamicPages.length > 0 && (
+            <>
+              <div className="mt-4 mb-2 px-3">
+                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Custom Pages
+                </h3>
+              </div>
+              {dynamicPages.map((page) => renderMenuItem(page))}
+            </>
+          )}
+          
           <button
             onClick={toggleTheme}
             className="p-1.5 ml-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"

@@ -84,10 +84,10 @@ export default function PagesPage() {
         return `/page-builder/login?id=${page.id}`;
       case "contact":
       case "contact_us":
-        return `/page-builder/contact?id=${page.id}`;
+        return `/admin/page-builder/contact?id=${page.id}`;
       case "register":
       case "registration":
-        return `/page-builder/registration?id=${page.id}`;
+        return `/admin/page-builder/registration/edit?id=${page.id}`;
       default:
         return `/page-builder/custom?id=${page.id}`;
     }

@@ -1,11 +1,9 @@
 // lib/api/client.ts
 import axios, { AxiosInstance, AxiosError, AxiosResponse } from 'axios';
 
-// Use proxy endpoint to avoid SSL issues with IP addresses
+// Use direct API endpoint
 const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://165.227.182.17/api';
-const BASE_URL = API_URL.includes('165.227.182.17') || process.env.NODE_ENV === 'development'
-  ? '/api/proxy' 
-  : API_URL;
+const BASE_URL = API_URL;
 
 class ApiClient {
   private instance: AxiosInstance;
@@ -28,7 +26,7 @@ class ApiClient {
       (config:any) => {
         // Add auth token if available
         if (typeof window !== 'undefined') {
-          const token = localStorage.getItem('authToken');
+          const token = localStorage.getItem('access_token');
           const tenantId = localStorage.getItem('tenantId');
           
           if (token) {
@@ -56,7 +54,7 @@ class ApiClient {
         // Handle 401 unauthorized
         if (error.response?.status === 401) {
           if (typeof window !== 'undefined') {
-            localStorage.removeItem('authToken');
+            localStorage.removeItem('access_token');
             localStorage.removeItem('user');
             window.location.href = '/admin-login';
           }

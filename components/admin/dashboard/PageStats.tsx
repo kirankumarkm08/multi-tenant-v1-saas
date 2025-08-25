@@ -57,7 +57,7 @@ const STAT_META: Record<string, StatMeta> = {
 export function PagesStats({
   stats,
 }: {
-  stats: Record<string, number | string>;
+  stats: Record<string, string | number> | { [key: string]: string | number };
 }) {
   const entries = Object.entries(stats).filter(
     ([, v]) => typeof v === "number" || (typeof v === "string" && v !== "")

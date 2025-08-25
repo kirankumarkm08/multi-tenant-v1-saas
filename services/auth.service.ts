@@ -29,7 +29,7 @@ export interface LogoutResponse {
 }
 
 export class AuthService {
-  private static readonly access_token = 'authToken';
+  private static readonly access_token = 'access_token';
   private static readonly REFRESH_access_token = 'refreshToken';
   private static readonly USER_KEY = 'user';
 

@@ -2,16 +2,12 @@ export async function apiFetch(
   endpoint: string,
   options: RequestInit & { token?: string } = {}
 ) {
-  const isServer = typeof window === "undefined";
   const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://165.227.182.17/api';
   
-  // Use proxy for IP addresses or in development mode to avoid SSL/CORS issues
-  const shouldUseProxy = !isServer && (API_URL.includes('165.227.182.17') || process.env.NODE_ENV === 'development');
-  const baseUrl = shouldUseProxy ? '/api/proxy' : API_URL;
-  
+  // Use direct API URL
   const url = endpoint.startsWith("/") 
-    ? `${baseUrl}${endpoint.replace(/^\/api/, "")}` // Remove /api prefix if present
-    : `${baseUrl}/${endpoint}`;
+    ? `${API_URL}${endpoint}` 
+    : `${API_URL}/${endpoint}`;
 
   // Token priority: explicit token > localStorage token > no token
   const tokenFromStorage = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;

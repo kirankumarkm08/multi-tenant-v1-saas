@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-config";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import { AuthService } from "@/services/auth.service";
+import { useAuth } from "@/context/AuthContext";
 
 export default function ClientLoginPage() {
   const [formConfig, setFormConfig] = useState<any>(null);
@@ -11,6 +13,8 @@ export default function ClientLoginPage() {
   const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const tenant = searchParams.get("tenant") || "default";
+  const router = useRouter();
+  const { setToken } = useAuth();
 
   useEffect(() => {
     async function fetchConfig() {
@@ -99,17 +103,42 @@ export default function ClientLoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    setError(null);
+    
     try {
-      console.log("Login Submitted:", formData);
-      console.log("Form ID:", formConfig.id);
-      alert("Login successful!");
-      // TODO: call your login API endpoint here, e.g.
-      // await apiFetch("/customer/login", { method: "POST", body: JSON.stringify(formData) })
-    } catch (error) {
+      // Extract username/email and password from form data
+      const username = formData.username || formData.email || "";
+      const password = formData.password || "";
+      
+      if (!username || !password) {
+        throw new Error("Username/email and password are required");
+      }
+
+      console.log("Attempting login for:", username);
+      
+      // Call the AuthService login method
+      const response = await AuthService.login({
+        username,
+        password,
+        email: formData.email
+      });
+
+      if (response.success && response.data.token) {
+        console.log("Login successful");
+        setToken(response.data.token);
+        
+        // Redirect based on user role or to dashboard
+        const redirectTo = searchParams.get("redirect") || "/admin";
+        router.push(redirectTo);
+      } else {
+        throw new Error(response.message || "Login failed");
+      }
+    } catch (error: any) {
       console.error("Login error:", error);
-      alert("Failed to login. Please try again.");
+      setError(error.message || "Failed to login. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
   const formFields: any[] = Array.isArray(formConfig.form_config)
@@ -129,6 +158,11 @@ export default function ClientLoginPage() {
           <p className="text-sm text-gray-500">
             Please enter your credentials to continue
           </p>
+          {error && (
+            <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+              {error}
+            </div>
+          )}
         </div>
 
         {formFields.length > 0 ? (

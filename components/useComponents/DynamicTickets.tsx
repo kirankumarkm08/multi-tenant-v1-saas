@@ -92,10 +92,10 @@ export default function DynamicTickets({
                   
                   <p className="text-gray-600 mb-4 text-sm">{ticket.description}</p>
                   
-                  {ticket.event_name && (
+                  {(ticket.event_name || (ticket.event_editions && ticket.event_editions.length > 0)) && (
                     <div className="mb-4 p-2 bg-blue-50 rounded">
                       <p className="text-sm font-medium text-blue-700">
-                        Event: {ticket.event_name}
+                        Event: {ticket.event_name || ticket.event_editions?.[0]?.event_name || "Event"}
                       </p>
                     </div>
                   )}
@@ -123,14 +123,14 @@ export default function DynamicTickets({
                       </div>
                     </div>
                     
-                    {ticket.saleEnd && (
+                    {(ticket.saleEnd || ticket.ticket_end_date) && (
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-gray-500" />
                           <span className="text-sm text-gray-600">Sale ends</span>
                         </div>
                         <span className="text-sm font-medium">
-                          {formatDate(ticket.saleEnd)}
+                          {formatDate(ticket.saleEnd || ticket.ticket_end_date)}
                         </span>
                       </div>
                     )}
