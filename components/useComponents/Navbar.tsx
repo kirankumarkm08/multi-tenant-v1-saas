@@ -20,48 +20,48 @@ export default function Navbar({ pages: initialPages }: NavbarProps) {
   const [pages, setPages] = useState<NavItem[]>(initialPages || []);
   const [loading, setLoading] = useState(!initialPages);
 
-  useEffect(() => {
-    const fetchNavigation = async () => {
-      try {
-        // Try customer endpoint first, fallback to tenant endpoint
-        let data;
-        try {
-          data = await apiFetch("/customer/pages/navigation");
-          setPages(data.pages || data || []);
-        } catch (customerError) {
-          // Fallback to tenant endpoint
-          const tenantData = await apiFetch("/tenant/pages");
+  // useEffect(() => {
+  //   const fetchNavigation = async () => {
+  //     try {
+  //       // Try customer endpoint first, fallback to tenant endpoint
+  //       let data;
+  //       try {
+  //         data = await apiFetch("/customer/pages/navigation");
+  //         setPages(data.pages || data || []);
+  //       } catch (customerError) {
+  //         // Fallback to tenant endpoint
+  //         const tenantData = await apiFetch("/tenant/pages");
           
-          // Filter and format pages with show_in_nav enabled
-          const navPages = tenantData
-            .filter((page: any) => {
-              const settings = typeof page.settings === "string" 
-                ? JSON.parse(page.settings) 
-                : page.settings;
-              return settings?.show_in_nav === true && page.status === "published";
-            })
-            .map((page: any) => ({
-              label: page.title,
-              href: page.slug ? `/${page.slug}` : `/page/${page.id}`,
-              page_type: page.page_type || "page",
-            }));
+  //         // Filter and format pages with show_in_nav enabled
+  //         const navPages = tenantData
+  //           .filter((page: any) => {
+  //             const settings = typeof page.settings === "string" 
+  //               ? JSON.parse(page.settings) 
+  //               : page.settings;
+  //             return settings?.show_in_nav === true && page.status === "published";
+  //           })
+  //           .map((page: any) => ({
+  //             label: page.title,
+  //             href: page.slug ? `/${page.slug}` : `/page/${page.id}`,
+  //             page_type: page.page_type || "page",
+  //           }));
           
-          setPages(navPages);
-        }
-      } catch (error) {
-        console.error("Failed to fetch navigation:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  //         setPages(navPages);
+  //       }
+  //     } catch (error) {
+  //       console.error("Failed to fetch navigation:", error);
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
 
-    if (!initialPages) {
-      fetchNavigation();
-    }
-  }, [initialPages]);
+  //   if (!initialPages) {
+  //     fetchNavigation();
+  //   }
+  // }, [initialPages]);
 
   // Show all pages that have show_in_nav enabled
-  const filteredPages = pages;
+  const filteredPages = initialPages;
 
   return (
     <nav className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
@@ -78,7 +78,7 @@ export default function Navbar({ pages: initialPages }: NavbarProps) {
             {filteredPages.map((item) => (
               <Link key={item.href} href={item.href}>
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
                   className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
                 >

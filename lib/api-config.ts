@@ -13,8 +13,11 @@ export async function apiFetch(
   const tokenFromStorage = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
   const token = options.token ?? tokenFromStorage;
 
+  // Don't set Content-Type for FormData - browser will set it with boundary
+  const isFormData = options.body instanceof FormData;
+  
   const defaultHeaders: HeadersInit = {
-    "Content-Type": "application/json",
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     Accept: "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };

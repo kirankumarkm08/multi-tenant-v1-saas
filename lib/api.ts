@@ -65,7 +65,7 @@ export const tenantApi = {
   getDashboard: (token?: string) => apiFetch(`${TENANT_BASE}/dashboard`, { token }),
 
   // Ticket Management
-  getTickets: (token?: string) => apiFetch(`${TENANT_BASE}/ticket`, { token }),
+  getTickets: () => apiFetch(`${TENANT_BASE}/ticket`),
   getTicketById: (id: number, token?: string) => apiFetch(`${TENANT_BASE}/ticket/${id}`, { token }),
   
   createTicket: (data: any, token?: string) =>

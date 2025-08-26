@@ -52,6 +52,8 @@ export default function TicketsPage() {
       let ticketsArray: Ticket[] = [];
       if (Array.isArray(response)) {
         ticketsArray = response;
+      } else if (response?.data?.data && Array.isArray(response.data.data)) {
+        ticketsArray = response.data.data;
       } else if (response?.data && Array.isArray(response.data)) {
         ticketsArray = response.data;
       } else if (response?.tickets && Array.isArray(response.tickets)) {

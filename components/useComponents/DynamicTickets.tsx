@@ -13,9 +13,16 @@ export default function DynamicTickets({
   title = "Available Tickets",
   showOnlyActive = true 
 }: DynamicTicketsProps) {
+  console.log("DynamicTickets received tickets:", tickets);
+  console.log("DynamicTickets tickets length:", tickets?.length);
+  console.log("DynamicTickets showOnlyActive:", showOnlyActive);
+  
   const displayTickets = showOnlyActive 
     ? tickets.filter(t => t.status === "active") 
     : tickets;
+    
+  console.log("DynamicTickets displayTickets:", displayTickets);
+  console.log("DynamicTickets displayTickets length:", displayTickets?.length);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -34,7 +41,7 @@ export default function DynamicTickets({
   };
 
   const getAvailabilityPercentage = (ticket: Ticket) => {
-    const sold = ticket.sold || 0;
+    const sold = (ticket as any).sold || 0;
     const total = ticket.quantity;
     return Math.round(((total - sold) / total) * 100);
   };
@@ -75,7 +82,7 @@ export default function DynamicTickets({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {displayTickets.map((ticket) => {
             const availabilityPercentage = getAvailabilityPercentage(ticket);
-            const availableTickets = ticket.quantity - (ticket.sold || 0);
+            const availableTickets = ticket.quantity - ((ticket as any).sold || 0);
             
             return (
               <div 
@@ -92,10 +99,10 @@ export default function DynamicTickets({
                   
                   <p className="text-gray-600 mb-4 text-sm">{ticket.description}</p>
                   
-                  {(ticket.event_name || (ticket.event_editions && ticket.event_editions.length > 0)) && (
+                  {((ticket as any).event_name || (ticket.event_editions && ticket.event_editions.length > 0)) && (
                     <div className="mb-4 p-2 bg-blue-50 rounded">
                       <p className="text-sm font-medium text-blue-700">
-                        Event: {ticket.event_name || ticket.event_editions?.[0]?.event_name || "Event"}
+                        Event: {(ticket as any).event_name || ticket.event_editions?.[0]?.event_name || "Event"}
                       </p>
                     </div>
                   )}
@@ -123,24 +130,24 @@ export default function DynamicTickets({
                       </div>
                     </div>
                     
-                    {(ticket.saleEnd || ticket.ticket_end_date) && (
+                    {((ticket as any).saleEnd || ticket.ticket_end_date) && (
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-gray-500" />
                           <span className="text-sm text-gray-600">Sale ends</span>
                         </div>
                         <span className="text-sm font-medium">
-                          {formatDate(ticket.saleEnd || ticket.ticket_end_date)}
+                          {formatDate((ticket as any).saleEnd || ticket.ticket_end_date)}
                         </span>
                       </div>
                     )}
                   </div>
                   
-                  {ticket.features && ticket.features.length > 0 && (
+                  {(ticket as any).features && (ticket as any).features.length > 0 && (
                     <div className="mb-4 border-t pt-4">
                       <p className="text-xs font-semibold text-gray-700 mb-2">INCLUDES:</p>
                       <ul className="space-y-1">
-                        {ticket.features.slice(0, 3).map((feature, index) => (
+                        {(ticket as any).features.slice(0, 3).map((feature: string, index: number) => (
                           <li key={index} className="flex items-start gap-2 text-xs text-gray-600">
                             <CheckCircle className="w-3 h-3 text-green-500 mt-0.5 flex-shrink-0" />
                             <span>{feature}</span>
@@ -169,6 +176,15 @@ export default function DynamicTickets({
             );
           })}
         </div>
+        
+        {/* Show more tickets hint */}
+        {displayTickets.length > 0 && (
+          <div className="text-center mt-12">
+            <p className="text-gray-600 dark:text-gray-400 text-sm">
+              Showing {displayTickets.length} ticket{displayTickets.length !== 1 ? 's' : ''} • All prices include applicable fees
+            </p>
+          </div>
+        )}
       </div>
     </section>
   );
