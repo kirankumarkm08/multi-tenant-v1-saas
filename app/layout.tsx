@@ -9,7 +9,7 @@ import { ThemeProvider } from "@/context/ThemeContext";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Event Management Website Builder",
+  title: "multi tenant ",
   description: "Build and manage your event websites with ease",
   generator: "v0.dev",
 };
