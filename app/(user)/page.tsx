@@ -84,9 +84,6 @@ export default function LandingPage() {
       }
     } catch (error) {
       console.error("Failed to fetch tickets via tenantApi:", error);
-      console.error("Error details:", error.message);
-      console.error("Error status:", error.status);
-      console.error("Error data:", error.data);
       
       // Try fallback with ticketService
       try {
