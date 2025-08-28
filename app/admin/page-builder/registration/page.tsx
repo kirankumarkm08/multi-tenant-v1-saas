@@ -158,16 +158,40 @@ export default function RegistrationPageBuilder() {
         },
       });
 
-      const formConfigRaw =
-        typeof data.form_config === "string"
-          ? JSON.parse(data.form_config)
-          : data.form_config;
-      const formConfig: FormField[] = Array.isArray(formConfigRaw.fields)
-        ? formConfigRaw.fields
-        : [];
+      console.log("Loaded page data:", data);
 
-      const settingsParsed =
-        typeof data.settings === "string" ? JSON.parse(data.settings) : data.settings;
+      // Parse form_config if it's a string
+      let formConfigRaw = data.form_config;
+      if (typeof formConfigRaw === "string") {
+        try {
+          formConfigRaw = JSON.parse(formConfigRaw);
+        } catch (e) {
+          console.error("Failed to parse form_config:", e);
+          formConfigRaw = { fields: [] };
+        }
+      }
+
+      // Extract fields array from the parsed config
+      let formConfig: FormField[] = [];
+      if (Array.isArray(formConfigRaw)) {
+        formConfig = formConfigRaw;
+      } else if (formConfigRaw && Array.isArray(formConfigRaw.fields)) {
+        formConfig = formConfigRaw.fields;
+      } else {
+        console.warn("Unexpected form_config structure, using default fields");
+        formConfig = defaultFields;
+      }
+
+      // Parse settings if it's a string
+      let settingsParsed = data.settings;
+      if (typeof settingsParsed === "string") {
+        try {
+          settingsParsed = JSON.parse(settingsParsed);
+        } catch (e) {
+          console.error("Failed to parse settings:", e);
+          settingsParsed = {};
+        }
+      }
 
       setPage({
         ...data,
@@ -180,6 +204,8 @@ export default function RegistrationPageBuilder() {
         },
         status: data.status || "draft",
       });
+
+      console.log("Page state updated successfully");
     } catch (error) {
       console.error("Failed to load page:", error);
       alert("Failed to load page data");
@@ -229,13 +255,32 @@ export default function RegistrationPageBuilder() {
   };
 
   const savePage = async () => {
+    // Validate required fields
+    if (!page.title || page.title.trim() === "") {
+      alert("Page title is required");
+      return;
+    }
+
+    if (!page.form_config || page.form_config.length === 0) {
+      alert("At least one form field is required");
+      return;
+    }
+
     setIsSaving(true);
     try {
+      // Ensure form_config has proper structure
+      const formConfigToSave = {
+        fields: page.form_config.map((field, index) => ({
+          ...field,
+          order: field.order !== undefined ? field.order : index,
+        })),
+      };
+
       const requestData = {
-        title: page.title,
-        slug: page.slug || null,
+        title: page.title.trim(),
+        slug: page.slug?.trim() || null,
         page_type: page.page_type,
-        form_config: JSON.stringify({ fields: page.form_config }),
+        form_config: JSON.stringify(formConfigToSave),
         settings: JSON.stringify(page.settings),
         status: page.status || "draft",
       };
@@ -254,20 +299,30 @@ export default function RegistrationPageBuilder() {
         body: JSON.stringify(requestData),
       });
 
-      if (!page.id) {
+      if (!page.id && savedPage.id) {
+        // Update state with new ID and update URL for future saves
         setPage((prev) => ({ ...prev, id: savedPage.id }));
-        window.history.pushState({}, "", `?id=${savedPage.id}`);
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.set("id", savedPage.id);
+        window.history.replaceState({}, "", newUrl.toString());
       }
 
       console.log("Page saved successfully:", savedPage);
-      alert("Page saved successfully!");
+      alert(page.id ? "Page updated successfully!" : "Page created successfully!");
+      
+      // If it was a new page, reload the page data to ensure consistency
+      if (!page.id && savedPage.id) {
+        await loadPage(savedPage.id);
+      }
     } catch (error: any) {
       console.error("Save error:", error);
       if (error?.data?.errors) {
         const errorMessages = Object.values(error.data.errors).flat().join("\n");
         alert(`Validation failed:\n${errorMessages}`);
+      } else if (error?.data?.message) {
+        alert(`Error: ${error.data.message}`);
       } else {
-        alert(error.message || "Failed to save page");
+        alert(error.message || "Failed to save page. Please check the console for details.");
       }
     } finally {
       setIsSaving(false);

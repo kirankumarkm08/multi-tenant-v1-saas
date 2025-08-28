@@ -25,6 +25,7 @@ export default function ClientRegistrationPage() {
         // ✅ Fetch only register type pages
         try {
           res = await apiFetch(`/customer/pages/type/register`);
+           console.log(res.data)
         } catch (_e) {
           // fallback for tenant-specific
           // try {
@@ -32,7 +33,7 @@ export default function ClientRegistrationPage() {
           // } catch (_e2) {}
         }
 
-        setRaw(res?.data);
+        setRaw(res?.data.data);
 
         // Normalize into array
         const maybeArray = Array.isArray(res?.data)

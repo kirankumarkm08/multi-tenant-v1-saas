@@ -21,7 +21,7 @@ export default function HeroSection() {
 
         {/* Button */}
         <div className="mt-8">
-          <Link href="/admin-log">
+          <Link href="/admin-login">
             <Button className="bg-yellow-400 text-black hover:bg-yellow-300 text-lg px-6 py-3 rounded-xl shadow-lg">
               Go to Admin Login
             </Button>
